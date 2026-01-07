@@ -79,10 +79,10 @@ export function generateSegmentMapSvg(
       </defs>
       <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
       <g clip-path="url(#mapClip-${segment.index})">${tileImages}</g>
-      <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="${pathD}" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${startX}" cy="${startY}" r="5" fill="#fff" stroke="#000" stroke-width="1.5"/>
-      <circle cx="${endX}" cy="${endY}" r="5" fill="#000" stroke="#fff" stroke-width="1.5"/>
+      <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      <path d="${pathD}" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      <circle cx="${startX}" cy="${startY}" r="5" fill="#fff" stroke="#000" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <circle cx="${endX}" cy="${endY}" r="5" fill="#000" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     </svg>`;
 }
 

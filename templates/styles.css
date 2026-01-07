@@ -217,6 +217,13 @@ header h1 {
   flex: 1;
 }
 
+.step-dist {
+  font-size: 0.5rem;
+  color: #666;
+  font-weight: 600;
+  margin-left: 0.3rem;
+}
+
 /* Emergency Box */
 .emergency-box {
   display: flex;

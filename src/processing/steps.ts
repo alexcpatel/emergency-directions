@@ -55,77 +55,62 @@ export function filterStepsForDisplay(steps: ProcessedStep[], maxSteps: number =
  */
 export function formatStepInstruction(step: ProcessedStep): string {
   const action = formatAction(step.instruction, step.modifier);
-  const dist = step.distance > 50 ? ` — ${formatDistance(step.distance)}` : '';
+  const dist = step.distance > 50 ? `<span class="step-dist">${formatDistance(step.distance)}</span>` : '';
 
   if (step.name) {
-    return `${action} on <strong>${step.name}</strong>${dist}`;
+    // Use "onto" for turns, "on" for continues
+    const preposition = step.instruction === 'turn' || step.instruction === 'end of road' ? 'onto' : 'on';
+    return `${action} ${preposition} <strong>${step.name}</strong>${dist}`;
   }
   return `${action}${dist}`;
 }
 
 function formatAction(instruction: string, modifier?: string | null): string {
-  // Format modifier nicely
-  const formatMod = (m: string | null | undefined): string => {
-    if (!m) return '';
-    switch (m) {
-      case 'sharp left': return ' SHARP LEFT';
-      case 'sharp right': return ' SHARP RIGHT';
-      case 'slight left': return ' SLIGHT LEFT';
-      case 'slight right': return ' SLIGHT RIGHT';
-      case 'left': return ' LEFT';
-      case 'right': return ' RIGHT';
-      case 'straight': return ' STRAIGHT';
-      case 'uturn': return ' U-TURN';
-      default: return ` ${m.toUpperCase()}`;
-    }
-  };
-
-  const dir = formatMod(modifier);
+  // Format direction exactly as API says
+  const dir = modifier ? modifier.toUpperCase() : '';
 
   switch (instruction) {
     case 'depart':
-      return 'START';
+      return 'Start';
     case 'arrive':
-      return 'ARRIVE';
+      return 'Arrive';
     case 'turn':
-      return `Turn${dir}`;
+      return `Turn ${dir}`.trim();
     case 'new name':
-      return `Continue${dir || ' STRAIGHT'}`;
+      return dir ? `Continue ${dir}` : 'Continue';
     case 'continue':
       return 'Continue';
     case 'merge':
-      return `Merge${dir}`;
+      return dir ? `Merge ${dir}` : 'Merge';
     case 'fork':
-      return `Keep${dir || ' RIGHT'}`;
+      return dir ? `At the fork, take a ${dir}` : 'At the fork';
     case 'end of road':
-      return `Turn${dir} at end`;
+      return dir ? `At the end of the road, take a ${dir}` : 'At the end of the road';
     case 'roundabout':
-      return `Roundabout${dir}`;
+      return dir ? `At the roundabout, take a ${dir}` : 'Roundabout';
     case 'on ramp':
-      return `On ramp${dir}`;
+      return dir ? `On ramp ${dir}` : 'On ramp';
     case 'off ramp':
-      return `Exit${dir}`;
+      return dir ? `Off ramp ${dir}` : 'Off ramp';
     case 'notification':
       return 'Note';
     default:
-      return `Continue${dir}`;
+      return dir ? `Continue ${dir}` : 'Continue';
   }
 }
 
 /**
- * Get icon type for step - handle all OSRM modifiers
+ * Get icon type for step - uses only real Lucide icons
  */
 export function getStepIconType(instruction: string, modifier?: string | null): string {
-  // Handle specific instructions first
+  // Special instructions
   if (instruction === 'depart') return 'start';
   if (instruction === 'arrive') return 'end';
   if (instruction === 'roundabout') return 'roundabout';
+  if (instruction === 'fork') return 'fork';
   if (instruction === 'merge') return 'merge';
 
-  // For fork/keep instructions, use the direction from modifier
-  // (fall through to modifier switch below)
-
-  // Handle modifiers
+  // For everything else, use direction-based arrows
   switch (modifier) {
     case 'left':
       return 'left';
@@ -141,8 +126,6 @@ export function getStepIconType(instruction: string, modifier?: string | null): 
       return 'sharp-right';
     case 'uturn':
       return 'uturn';
-    case 'straight':
-      return 'straight';
     default:
       return 'straight';
   }
