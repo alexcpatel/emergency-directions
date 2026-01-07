@@ -71,7 +71,7 @@ export function generateSegmentMapSvg(
 
   const tileImages = generateTileImages(bounds, width, height);
 
-  return `<svg viewBox="0 0 ${width} ${height}" class="segment-map-svg">
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice" class="segment-map-svg">
       <defs>
         <clipPath id="mapClip-${segment.index}">
           <rect width="${width}" height="${height}"/>

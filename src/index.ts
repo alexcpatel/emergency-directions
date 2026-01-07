@@ -8,8 +8,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ROUTE_CONFIG, OUTPUT_CONFIG, ROUTE_CONFIG_PROCESSING } from './config';
-import { fetchWalkingRoute, extractSteps } from './api/osrm';
-import { fetchSegmentLocations, fetchSegmentWaypoints } from './api/nominatim';
+import { fetchRoute, extractSteps } from './api/osrm';
+import { fetchSegmentLocations } from './api/nominatim';
 import { segmentRoute } from './processing/route';
 import { groupStepsBySegment } from './processing/steps';
 import { generateHtmlDocument } from './rendering/html';
@@ -21,32 +21,43 @@ async function main(): Promise<void> {
   try {
     console.log('=== Emergency Walking Directions Generator ===\n');
 
-    // Step 1: Fetch walking route from OSRM
-    const route = await fetchWalkingRoute(ROUTE_CONFIG.start, ROUTE_CONFIG.end);
+    // Step 1: Fetch route from OSRM
+    const route = await fetchRoute(ROUTE_CONFIG.start, ROUTE_CONFIG.end);
     console.log(`Route found: ${formatDistance(route.distance)}, ${formatDuration(route.duration)}\n`);
 
     // Step 2: Extract navigation steps
     const steps = extractSteps(route);
-    console.log(`Total navigation steps: ${steps.length}\n`);
+    console.log(`Total navigation steps: ${steps.length}`);
 
-    // Step 3: Segment the route
-    const segments = segmentRoute(route, ROUTE_CONFIG_PROCESSING.numSegments);
+    // Debug: show first 10 steps raw
+    console.log('\nFirst 10 steps from OSRM:');
+    steps.slice(0, 10).forEach((s, i) => {
+      console.log(`  ${i + 1}. ${s.instruction} ${s.modifier || ''} -> "${s.name}" (${Math.round(s.distance)}m) at [${s.location[0].toFixed(4)}, ${s.location[1].toFixed(4)}]`);
+    });
+    console.log('');
+
+    // Step 3: Segment the route based on steps (not coordinates)
+    const segments = segmentRoute(route, ROUTE_CONFIG_PROCESSING.numSegments, steps);
     console.log(`Route split into ${segments.length} segments\n`);
 
     // Step 4: Fetch location names (this is the slow part due to rate limiting)
     const segmentLocations = await fetchSegmentLocations(segments);
 
-    // Step 5: Fetch intermediate waypoints
-    await fetchSegmentWaypoints(segments, ROUTE_CONFIG_PROCESSING.waypointsPerSegment);
-
-    // Step 6: Group steps by segment
+    // Step 5: Group steps by segment
     const segmentSteps = groupStepsBySegment(steps, segments);
 
-    // Step 7: Generate HTML document
+    // Debug: show step distribution
+    console.log('\nSteps per segment:');
+    segmentSteps.forEach((steps, i) => {
+      const roads = steps.map(s => `${s.instruction}:${s.name}(${Math.round(s.distance)}m)`).join(', ');
+      console.log(`  Segment ${i + 1}: ${steps.length} steps - ${roads || 'none'}`);
+    });
+
+    // Step 6: Generate HTML document
     console.log('\nGenerating HTML...');
     const html = generateHtmlDocument(route, segments, segmentLocations, segmentSteps);
 
-    // Step 8: Write output
+    // Step 7: Write output
     const outputDir = path.join(__dirname, '..', OUTPUT_CONFIG.directory);
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });

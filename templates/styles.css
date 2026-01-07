@@ -148,24 +148,21 @@ header h1 {
 /* Segment Body - uniform layout */
 .segment-body {
   display: flex;
-  flex: 1;
-  min-height: 120px;
+  align-items: stretch;
 }
 
 .segment-map {
-  width: 120px;
+  width: 110px;
+  min-width: 110px;
+  aspect-ratio: 1;
   flex-shrink: 0;
   border-right: 1px solid #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: #fafafa;
-  padding: 0.15rem;
 }
 
 .segment-map-svg {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 

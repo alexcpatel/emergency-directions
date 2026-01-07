@@ -96,6 +96,7 @@ export interface RouteSegment {
   distance: number;
   duration: number;
   waypoints?: Waypoint[];
+  stepRange?: [number, number]; // [startStepIdx, endStepIdx]
 }
 
 export interface SegmentLocation {

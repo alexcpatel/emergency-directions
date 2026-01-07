@@ -11,7 +11,7 @@ import {
   RouteStep,
   ProcessedStep,
 } from '../types';
-import { ROUTE_CONFIG, DISTANCE_THRESHOLDS } from '../config';
+import { ROUTE_CONFIG } from '../config';
 import {
   formatDistance,
   formatDuration,
@@ -156,7 +156,7 @@ function generateSegmentHtml(
   const segDistance = formatDistance(segment.distance);
   const segDuration = formatDuration(segment.duration);
   const mapSvg = generateSegmentMapSvg(segment);
-  const stepsHtml = generateStepsHtml(segment, steps);
+  const stepsHtml = generateStepsHtml(steps);
 
   return `
       <div class="segment">
@@ -177,30 +177,15 @@ function generateSegmentHtml(
     `;
 }
 
-function generateStepsHtml(segment: RouteSegment, steps: RouteStep[]): string {
+function generateStepsHtml(steps: RouteStep[]): string {
   const processedSteps = processStepsForDisplay(steps);
   const displaySteps = filterStepsForDisplay(processedSteps);
 
-  // Calculate displayed distance
-  const displayedDistance = displaySteps.reduce((sum, s) => sum + (s.distance || 0), 0);
-  const missingDistance = segment.distance - displayedDistance;
-
-  let items = displaySteps.map((s) => formatStepWithIcon(s)).join('\n');
-
-  // Add waypoints for missing distance
-  if (missingDistance > DISTANCE_THRESHOLDS.minMissingDistance && segment.waypoints?.length) {
-    for (const wp of segment.waypoints) {
-      items += `\n${createStepItem('straight', `Continue on <strong>${wp.road}</strong> — ${formatDistance(wp.distance)}`)}`;
-    }
-  } else if (missingDistance > DISTANCE_THRESHOLDS.minMissingDistance) {
-    items += `\n${createStepItem('straight', `Continue on route — ${formatDistance(missingDistance)}`)}`;
+  if (displaySteps.length === 0) {
+    return createStepItem('straight', 'Follow route on map');
   }
 
-  if (!items) {
-    items = createStepItem('straight', 'Follow the route shown on map');
-  }
-
-  return items;
+  return displaySteps.map((s) => formatStepWithIcon(s)).join('\n');
 }
 
 function formatStepWithIcon(step: ProcessedStep): string {
