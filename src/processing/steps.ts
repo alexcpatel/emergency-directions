@@ -98,7 +98,7 @@ function formatAction(instruction: string, modifier?: string | null): string {
     case 'fork':
       return `Keep${dir || ' RIGHT'}`;
     case 'end of road':
-      return `End of road${dir}`;
+      return `Turn${dir} at end`;
     case 'roundabout':
       return `Roundabout${dir}`;
     case 'on ramp':
@@ -121,7 +121,9 @@ export function getStepIconType(instruction: string, modifier?: string | null): 
   if (instruction === 'arrive') return 'end';
   if (instruction === 'roundabout') return 'roundabout';
   if (instruction === 'merge') return 'merge';
-  if (instruction === 'fork') return 'fork';
+
+  // For fork/keep instructions, use the direction from modifier
+  // (fall through to modifier switch below)
 
   // Handle modifiers
   switch (modifier) {

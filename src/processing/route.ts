@@ -23,13 +23,18 @@ export function segmentRoute(
     return segmentByCoordinates(coordinates, numSegments);
   }
 
-  // Segment by steps: each segment gets roughly equal number of steps
-  const stepsPerSegment = Math.ceil(steps.length / numSegments);
+  // Segment by steps: distribute steps evenly across segments
+  const stepsPerSegment = Math.floor(steps.length / numSegments);
+  const extraSteps = steps.length % numSegments;
   const segments: RouteSegment[] = [];
 
+  let stepIdx = 0;
   for (let i = 0; i < numSegments; i++) {
-    const startStepIdx = i * stepsPerSegment;
-    const endStepIdx = Math.min((i + 1) * stepsPerSegment - 1, steps.length - 1);
+    // Give some segments an extra step to distribute evenly
+    const segmentStepCount = stepsPerSegment + (i < extraSteps ? 1 : 0);
+    const startStepIdx = stepIdx;
+    const endStepIdx = stepIdx + segmentStepCount - 1;
+    stepIdx += segmentStepCount;
 
     if (startStepIdx >= steps.length) break;
 

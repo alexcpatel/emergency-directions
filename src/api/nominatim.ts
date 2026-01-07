@@ -81,7 +81,7 @@ export function extractLocationName(data: NominatimResponse | null): string {
 
 /**
  * Fetch location names for all segments
- * Optimized to batch start/end requests per segment
+ * Chains names so end of segment N = start of segment N+1
  */
 export async function fetchSegmentLocations(
   segments: RouteSegment[]
@@ -90,18 +90,38 @@ export async function fetchSegmentLocations(
 
   const locations: SegmentLocation[] = [];
 
-  for (const seg of segments) {
-    const [startData, endData] = await fetchSegmentEndpoints(seg);
+  // Track last end name/addr to chain segments together
+  let lastEndName: string | null = null;
+  let lastEndAddr: NominatimAddress | undefined = undefined;
 
-    const startName = extractLocationName(startData);
+  for (const seg of segments) {
+    // Start name: use previous segment's end name, or fetch fresh for first segment
+    let startName: string;
+    let startAddr: NominatimAddress | undefined;
+
+    if (lastEndName !== null) {
+      startName = lastEndName;
+      startAddr = lastEndAddr;
+    } else {
+      const startData = await fetchPlaceName(seg.startCoord[1], seg.startCoord[0]);
+      startName = extractLocationName(startData);
+      startAddr = startData?.address;
+    }
+
+    // Always fetch end name fresh
+    const endData = await fetchPlaceName(seg.endCoord[1], seg.endCoord[0]);
     const endName = extractLocationName(endData);
 
     locations.push({
       startName,
       endName,
-      startAddr: startData?.address,
+      startAddr,
       endAddr: endData?.address,
     });
+
+    // Save for next segment
+    lastEndName = endName;
+    lastEndAddr = endData?.address;
 
     console.log(`  Segment ${seg.index}: ${startName} → ${endName}`);
   }
