@@ -64,7 +64,23 @@ export function formatStepInstruction(step: ProcessedStep): string {
 }
 
 function formatAction(instruction: string, modifier?: string | null): string {
-  const dir = modifier ? ` ${modifier.toUpperCase()}` : '';
+  // Format modifier nicely
+  const formatMod = (m: string | null | undefined): string => {
+    if (!m) return '';
+    switch (m) {
+      case 'sharp left': return ' SHARP LEFT';
+      case 'sharp right': return ' SHARP RIGHT';
+      case 'slight left': return ' SLIGHT LEFT';
+      case 'slight right': return ' SLIGHT RIGHT';
+      case 'left': return ' LEFT';
+      case 'right': return ' RIGHT';
+      case 'straight': return ' STRAIGHT';
+      case 'uturn': return ' U-TURN';
+      default: return ` ${m.toUpperCase()}`;
+    }
+  };
+
+  const dir = formatMod(modifier);
 
   switch (instruction) {
     case 'depart':
@@ -74,28 +90,58 @@ function formatAction(instruction: string, modifier?: string | null): string {
     case 'turn':
       return `Turn${dir}`;
     case 'new name':
+      return `Continue${dir || ' STRAIGHT'}`;
     case 'continue':
       return 'Continue';
     case 'merge':
-      return 'Merge';
+      return `Merge${dir}`;
     case 'fork':
-      return `Keep${dir}`;
+      return `Keep${dir || ' RIGHT'}`;
     case 'end of road':
-      return `End of road, turn${dir}`;
+      return `End of road${dir}`;
     case 'roundabout':
-      return 'Roundabout';
+      return `Roundabout${dir}`;
+    case 'on ramp':
+      return `On ramp${dir}`;
+    case 'off ramp':
+      return `Exit${dir}`;
+    case 'notification':
+      return 'Note';
     default:
-      return 'Continue';
+      return `Continue${dir}`;
   }
 }
 
 /**
- * Get icon type for step
+ * Get icon type for step - handle all OSRM modifiers
  */
 export function getStepIconType(instruction: string, modifier?: string | null): string {
-  if (modifier === 'left' || modifier === 'slight left') return 'left';
-  if (modifier === 'right' || modifier === 'slight right') return 'right';
+  // Handle specific instructions first
   if (instruction === 'depart') return 'start';
   if (instruction === 'arrive') return 'end';
-  return 'straight';
+  if (instruction === 'roundabout') return 'roundabout';
+  if (instruction === 'merge') return 'merge';
+  if (instruction === 'fork') return 'fork';
+
+  // Handle modifiers
+  switch (modifier) {
+    case 'left':
+      return 'left';
+    case 'right':
+      return 'right';
+    case 'slight left':
+      return 'slight-left';
+    case 'slight right':
+      return 'slight-right';
+    case 'sharp left':
+      return 'sharp-left';
+    case 'sharp right':
+      return 'sharp-right';
+    case 'uturn':
+      return 'uturn';
+    case 'straight':
+      return 'straight';
+    default:
+      return 'straight';
+  }
 }

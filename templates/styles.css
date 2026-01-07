@@ -91,6 +91,7 @@ header h1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.3rem;
+  align-items: stretch;
 }
 
 .segment {
@@ -149,12 +150,13 @@ header h1 {
 .segment-body {
   display: flex;
   align-items: stretch;
+  flex: 1;
 }
 
 .segment-map {
   width: 110px;
   min-width: 110px;
-  aspect-ratio: 1;
+  min-height: 110px;
   flex-shrink: 0;
   border-right: 1px solid #000;
   background: #fafafa;
@@ -163,7 +165,9 @@ header h1 {
 .segment-map-svg {
   width: 100%;
   height: 100%;
+  min-height: 110px;
   display: block;
+  object-fit: cover;
 }
 
 .segment-directions {
