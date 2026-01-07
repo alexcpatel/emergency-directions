@@ -1,0 +1,33 @@
+{
+  "name": "emergency-directions",
+  "version": "1.0.0",
+  "description": "Generate printable emergency walking directions from Columbia University to Sherman, CT",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "generate": "npm run build && npm start",
+    "dev": "ts-node src/index.ts",
+    "clean": "rm -rf dist output",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "emergency",
+    "directions",
+    "walking",
+    "osrm",
+    "openstreetmap"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  }
+}
