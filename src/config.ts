@@ -94,9 +94,9 @@ export const DISTANCE_THRESHOLDS = {
 // Map rendering
 export const MAP_CONFIG = {
   /** Overview map dimensions */
-  overview: { width: 700, height: 220 },
-  /** Segment map dimensions - square for proper aspect ratio */
-  segment: { width: 160, height: 160 },
+  overview: { width: 700, height: 180 },
+  /** Segment map dimensions - compact square */
+  segment: { width: 120, height: 120 },
   /** Bounds padding factor */
   boundsPadding: 0.25,
   /** Max points to sample for SVG paths */

@@ -131,6 +131,8 @@ function formatAction(instruction: string, modifier?: string | null): string {
     case 'turn':
       if (modifier === 'left') return 'Turn LEFT';
       if (modifier === 'right') return 'Turn RIGHT';
+      if (modifier === 'slight left') return 'Slight left';
+      if (modifier === 'slight right') return 'Slight right';
       return `Turn ${modifier || ''}`;
     case 'new name':
     case 'continue':
@@ -138,17 +140,41 @@ function formatAction(instruction: string, modifier?: string | null): string {
     case 'merge':
       return 'Merge/Continue';
     case 'depart':
-      return 'START walking';
+      return 'START';
     case 'arrive':
-      return 'ARRIVE at destination';
+      return 'ARRIVE';
     case 'fork':
       return modifier === 'left' ? 'Keep LEFT' : 'Keep RIGHT';
     case 'roundabout':
-      return 'At roundabout';
+      return 'Roundabout';
     case 'end of road':
-      return 'end of road';
+      return 'End of road';
     default:
       return instruction || 'Continue';
+  }
+}
+
+/**
+ * Get icon type for a step
+ */
+export function getStepIconType(instruction: string, modifier?: string | null): string {
+  switch (instruction) {
+    case 'turn':
+      if (modifier === 'left') return 'left';
+      if (modifier === 'right') return 'right';
+      if (modifier === 'slight left') return 'slight-left';
+      if (modifier === 'slight right') return 'slight-right';
+      return 'straight';
+    case 'fork':
+      return modifier === 'left' ? 'slight-left' : 'slight-right';
+    case 'depart':
+      return 'start';
+    case 'arrive':
+      return 'end';
+    case 'roundabout':
+      return 'roundabout';
+    default:
+      return 'straight';
   }
 }
 

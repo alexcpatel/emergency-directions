@@ -19,17 +19,13 @@ function adjustBoundsForAspectRatio(
   const latRange = bounds.maxLat - bounds.minLat;
   const lonRange = bounds.maxLon - bounds.minLon;
 
-  // Calculate the center
   const centerLat = (bounds.minLat + bounds.maxLat) / 2;
   const centerLon = (bounds.minLon + bounds.maxLon) / 2;
 
-  // Latitude correction factor (longitude degrees are smaller near poles)
+  // Latitude correction factor
   const latCorrection = Math.cos((centerLat * Math.PI) / 180);
-
-  // Convert to a common unit (adjusted longitude)
   const adjustedLonRange = lonRange * latCorrection;
 
-  // Determine which dimension needs to be expanded
   const viewportAspect = viewportWidth / viewportHeight;
   const geoAspect = adjustedLonRange / latRange;
 
@@ -37,10 +33,8 @@ function adjustBoundsForAspectRatio(
   let newLonRange = lonRange;
 
   if (geoAspect > viewportAspect) {
-    // Geography is wider than viewport - expand latitude
     newLatRange = adjustedLonRange / viewportAspect;
   } else {
-    // Geography is taller than viewport - expand longitude
     newLonRange = (latRange * viewportAspect) / latCorrection;
   }
 
@@ -55,61 +49,7 @@ function adjustBoundsForAspectRatio(
 }
 
 /**
- * Generate a north arrow SVG element
- */
-function generateNorthArrow(x: number, y: number): string {
-  return `
-    <g transform="translate(${x}, ${y})">
-      <circle r="12" fill="white" stroke="#333" stroke-width="1"/>
-      <path d="M0,-8 L3,4 L0,2 L-3,4 Z" fill="#333"/>
-      <text y="6" text-anchor="middle" font-size="6" font-weight="bold" fill="#333">N</text>
-    </g>
-  `;
-}
-
-/**
- * Generate directional arrows along the route
- */
-function generateDirectionArrows(
-  coordinates: Array<[number, number]>,
-  bounds: Bounds,
-  width: number,
-  height: number,
-  numArrows: number = 3
-): string {
-  if (coordinates.length < 10) return '';
-
-  const arrows: string[] = [];
-  const step = Math.floor(coordinates.length / (numArrows + 1));
-
-  for (let i = 1; i <= numArrows; i++) {
-    const idx = i * step;
-    if (idx >= coordinates.length - 1) continue;
-
-    const [lon1, lat1] = coordinates[idx];
-    const [lon2, lat2] = coordinates[Math.min(idx + 5, coordinates.length - 1)];
-
-    const x = toSvgX(lon1, bounds, width);
-    const y = toSvgY(lat1, bounds, height);
-
-    // Calculate angle of travel
-    const dx = toSvgX(lon2, bounds, width) - x;
-    const dy = toSvgY(lat2, bounds, height) - y;
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-    arrows.push(`
-      <g transform="translate(${x}, ${y}) rotate(${angle})">
-        <path d="M-5,0 L5,0 M1,-3 L5,0 L1,3" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>
-        <path d="M-5,0 L5,0 M1,-3 L5,0 L1,3" fill="none" stroke="#c00" stroke-width="2" stroke-linecap="round"/>
-      </g>
-    `);
-  }
-
-  return arrows.join('\n');
-}
-
-/**
- * Generate SVG map for a route segment with map background
+ * Generate SVG map for a route segment - clean, minimal
  */
 export function generateSegmentMapSvg(
   segment: RouteSegment,
@@ -118,7 +58,6 @@ export function generateSegmentMapSvg(
   const { width, height } = dimensions;
   const { coordinates, startCoord, endCoord } = segment;
 
-  // Adjust bounds for proper aspect ratio
   const rawBounds = segment.bounds;
   const bounds = adjustBoundsForAspectRatio(rawBounds, width, height);
 
@@ -131,39 +70,24 @@ export function generateSegmentMapSvg(
   const endY = toSvgY(endCoord[1], bounds, height);
 
   const tileImages = generateTileImages(bounds, width, height);
-  const directionArrows = generateDirectionArrows(coordinates, bounds, width, height, 2);
-  const northArrow = generateNorthArrow(width - 16, 16);
 
-  return `
-    <svg viewBox="0 0 ${width} ${height}" class="segment-map-svg">
+  return `<svg viewBox="0 0 ${width} ${height}" class="segment-map-svg">
       <defs>
         <clipPath id="mapClip-${segment.index}">
           <rect width="${width}" height="${height}"/>
         </clipPath>
       </defs>
-      <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#ccc"/>
-      <g clip-path="url(#mapClip-${segment.index})">
-        ${tileImages}
-      </g>
-      <!-- Route line with white outline for visibility -->
-      <path d="${pathD}" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="${pathD}" fill="none" stroke="#c00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- Direction arrows -->
-      ${directionArrows}
-      <!-- Start point (green) -->
-      <circle cx="${startX}" cy="${startY}" r="6" fill="white" stroke="#090" stroke-width="2"/>
-      <circle cx="${startX}" cy="${startY}" r="3" fill="#090"/>
-      <!-- End point (red target) -->
-      <circle cx="${endX}" cy="${endY}" r="6" fill="white" stroke="#c00" stroke-width="2"/>
-      <circle cx="${endX}" cy="${endY}" r="2.5" fill="#c00"/>
-      <!-- North arrow -->
-      ${northArrow}
-    </svg>
-  `;
+      <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
+      <g clip-path="url(#mapClip-${segment.index})">${tileImages}</g>
+      <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${pathD}" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${startX}" cy="${startY}" r="5" fill="#fff" stroke="#000" stroke-width="1.5"/>
+      <circle cx="${endX}" cy="${endY}" r="5" fill="#000" stroke="#fff" stroke-width="1.5"/>
+    </svg>`;
 }
 
 /**
- * Generate SVG overview map for entire route with map background
+ * Generate SVG overview map for entire route
  */
 export function generateOverviewMapSvg(
   coordinates: Array<[number, number]>,
@@ -171,7 +95,6 @@ export function generateOverviewMapSvg(
 ): string {
   const { width, height } = dimensions;
 
-  // Adjust bounds for proper aspect ratio
   const rawBounds = calculateBounds(coordinates);
   const bounds = adjustBoundsForAspectRatio(rawBounds, width, height);
 
@@ -185,47 +108,28 @@ export function generateOverviewMapSvg(
   const endY = toSvgY(endCoord[1], bounds, height);
 
   const tileImages = generateTileImages(bounds, width, height);
-  const directionArrows = generateDirectionArrows(coordinates, bounds, width, height, 5);
-  const northArrow = generateNorthArrow(width - 20, 20);
 
-  return `
-    <svg viewBox="0 0 ${width} ${height}" class="overview-map-svg">
+  return `<svg viewBox="0 0 ${width} ${height}" class="overview-map-svg">
       <defs>
         <clipPath id="overviewClip">
           <rect width="${width}" height="${height}"/>
         </clipPath>
       </defs>
-      <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#ccc"/>
-      <g clip-path="url(#overviewClip)">
-        ${tileImages}
-      </g>
-      <!-- Route line with white outline -->
-      <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="${pathD}" fill="none" stroke="#c00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- Direction arrows -->
-      ${directionArrows}
-      <!-- Start marker (green) -->
-      <circle cx="${startX}" cy="${startY}" r="8" fill="white" stroke="#090" stroke-width="2"/>
-      <circle cx="${startX}" cy="${startY}" r="4" fill="#090"/>
-      <text x="${startX + 12}" y="${startY + 4}" font-size="9" font-weight="bold" fill="#090">START</text>
-      <!-- End marker (red) -->
-      <circle cx="${endX}" cy="${endY}" r="8" fill="white" stroke="#c00" stroke-width="2"/>
-      <circle cx="${endX}" cy="${endY}" r="3.5" fill="#c00"/>
-      <text x="${endX + 12}" y="${endY + 4}" font-size="9" font-weight="bold" fill="#c00">END</text>
-      <!-- North arrow -->
-      ${northArrow}
-    </svg>
-  `;
+      <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
+      <g clip-path="url(#overviewClip)">${tileImages}</g>
+      <path d="${pathD}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${pathD}" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${startX}" cy="${startY}" r="7" fill="#fff" stroke="#000" stroke-width="2"/>
+      <text x="${startX + 10}" y="${startY + 4}" font-size="9" font-weight="bold" fill="#000">START</text>
+      <circle cx="${endX}" cy="${endY}" r="7" fill="#000" stroke="#fff" stroke-width="2"/>
+      <text x="${endX + 10}" y="${endY + 4}" font-size="9" font-weight="bold" fill="#000">END</text>
+    </svg>`;
 }
 
 /**
  * Generate tile image elements for the map background
  */
-function generateTileImages(
-  bounds: Bounds,
-  width: number,
-  height: number
-): string {
+function generateTileImages(bounds: Bounds, width: number, height: number): string {
   const zoom = calculateZoomLevel(bounds, width, height);
   const tiles = getTilesForBounds(bounds, zoom);
 
@@ -237,7 +141,6 @@ function generateTileImages(
       .replace('{x}', tile.x.toString())
       .replace('{y}', tile.y.toString());
 
-    // Calculate where this tile should be positioned in the SVG
     const tileBounds = getTileBounds(tile.x, tile.y, zoom);
 
     const tileLeft = toSvgX(tileBounds.minLon, bounds, width);
@@ -253,36 +156,29 @@ function generateTileImages(
     );
   }
 
-  return images.join('\n        ');
+  return images.join('');
 }
 
 /**
  * Calculate appropriate zoom level for bounds
- * Higher zoom = more detail, smaller text, sharper images
  */
 function calculateZoomLevel(bounds: Bounds, width: number, height: number): number {
   const latRange = bounds.maxLat - bounds.minLat;
   const lonRange = bounds.maxLon - bounds.minLon;
 
-  // Calculate zoom based on degrees per pixel we want
   const degreesPerPixelLon = lonRange / width;
   const degreesPerPixelLat = latRange / height;
   const degreesPerPixel = Math.max(degreesPerPixelLon, degreesPerPixelLat);
 
-  // Solve for zoom: degreesPerPixel = 360 / (256 * 2^z)
   const idealZoom = Math.log2(360 / (256 * degreesPerPixel));
 
-  // Add 1 level for sharper text, clamp to reasonable range
-  return Math.max(11, Math.min(16, Math.ceil(idealZoom + 1)));
+  return Math.max(12, Math.min(16, Math.ceil(idealZoom + 1)));
 }
 
 /**
  * Get all tiles needed to cover the bounds
  */
-function getTilesForBounds(
-  bounds: Bounds,
-  zoom: number
-): Array<{ x: number; y: number }> {
+function getTilesForBounds(bounds: Bounds, zoom: number): Array<{ x: number; y: number }> {
   const minTile = latLonToTile(bounds.maxLat, bounds.minLon, zoom);
   const maxTile = latLonToTile(bounds.minLat, bounds.maxLon, zoom);
 
@@ -300,28 +196,18 @@ function getTilesForBounds(
 /**
  * Convert lat/lon to tile coordinates
  */
-function latLonToTile(
-  lat: number,
-  lon: number,
-  zoom: number
-): { x: number; y: number } {
+function latLonToTile(lat: number, lon: number, zoom: number): { x: number; y: number } {
   const n = Math.pow(2, zoom);
   const x = Math.floor(((lon + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
-  );
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
   return { x, y };
 }
 
 /**
  * Get the bounds of a tile in lat/lon
  */
-function getTileBounds(
-  x: number,
-  y: number,
-  zoom: number
-): { minLat: number; maxLat: number; minLon: number; maxLon: number } {
+function getTileBounds(x: number, y: number, zoom: number): { minLat: number; maxLat: number; minLon: number; maxLon: number } {
   const n = Math.pow(2, zoom);
 
   const minLon = (x / n) * 360 - 180;
@@ -336,12 +222,7 @@ function getTileBounds(
   return { minLat, maxLat, minLon, maxLon };
 }
 
-function generateSvgPath(
-  coordinates: Array<[number, number]>,
-  bounds: Bounds,
-  width: number,
-  height: number
-): string {
+function generateSvgPath(coordinates: Array<[number, number]>, bounds: Bounds, width: number, height: number): string {
   return coordinates
     .map(([lon, lat], i) => {
       const x = toSvgX(lon, bounds, width).toFixed(1);

@@ -9,7 +9,7 @@ import {
   RouteSegment,
   SegmentLocation,
   RouteStep,
-  Waypoint,
+  ProcessedStep,
 } from '../types';
 import { ROUTE_CONFIG, DISTANCE_THRESHOLDS } from '../config';
 import {
@@ -22,7 +22,20 @@ import {
   processStepsForDisplay,
   filterStepsForDisplay,
   formatStepInstruction,
+  getStepIconType,
 } from '../processing/steps';
+
+// SVG Icons for directions
+const DIRECTION_ICONS: Record<string, string> = {
+  'straight': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M12 5l-5 5M12 5l5 5"/></svg>`,
+  'left': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M5 12l5-5M5 12l5 5"/></svg>`,
+  'right': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M19 12l-5-5M19 12l-5 5"/></svg>`,
+  'slight-left': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 17L7 7M7 7v6M7 7h6"/></svg>`,
+  'slight-right': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17l10-10M17 7v6M17 7h-6"/></svg>`,
+  'start': `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>`,
+  'end': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+  'roundabout': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="6"/><path d="M12 6V2M12 22v-4"/></svg>`,
+};
 
 /**
  * Load CSS from templates directory
@@ -50,6 +63,7 @@ export function generateHtmlDocument(
   const coordinates = route.geometry.coordinates;
   const overviewSvg = generateOverviewMapSvg(coordinates);
   const segmentsHtml = generateSegmentsHtml(segments, segmentLocations, segmentSteps);
+  const segmentsWrapped = `<div class="segments-container">${segmentsHtml}</div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -85,7 +99,7 @@ ${styles}
   </div>
 
   <div class="warning">
-    <strong>⚠ Emergency Use:</strong> Walk facing traffic. Carry water. Rest when needed. This route follows roads—some lack sidewalks. At night, stay visible or shelter in place.
+    <strong>⚠ Emergency Use:</strong> Walk facing traffic. Carry water. Rest when needed. At night, stay visible or shelter in place.
   </div>
 
   <div class="overview">
@@ -93,18 +107,13 @@ ${styles}
     ${overviewSvg}
   </div>
 
-${segmentsHtml}
+${segmentsWrapped}
 
   <div class="survival">
-    <h3>Survival Essentials</h3>
-    <ul>
-      <li><strong>WATER:</strong> Gas stations, fast food restrooms, public buildings, fire stations. Streams/rivers: filter or boil if possible.</li>
-      <li><strong>FOOD:</strong> Convenience stores, gas stations, supermarkets along route. Carry high-calorie bars.</li>
-      <li><strong>SHELTER (night):</strong> Churches (often unlocked), fire station lobbies, hospital waiting areas, 24hr businesses (McDonald's, Walmart), highway rest areas, dense woods away from road.</li>
-      <li><strong>REST POINTS:</strong> Parks, cemeteries (quiet, benches), shopping plaza benches, bus shelters.</li>
-      <li><strong>DANGER:</strong> Stay off highway travel lanes. Walk facing traffic. At night: stop or stay in lit areas.</li>
-      <li><strong>INJURY/EMERGENCY:</strong> Call 911. Flag any vehicle. Seek buildings with lights. Fire stations are staffed 24/7.</li>
-    </ul>
+    <div class="survival-item"><strong>Water</strong>Gas stations, fast food, fire stations</div>
+    <div class="survival-item"><strong>Food</strong>Convenience stores, supermarkets</div>
+    <div class="survival-item"><strong>Shelter</strong>Churches, fire stations, 24hr stores</div>
+    <div class="survival-item"><strong>Emergency</strong>Call 911, flag vehicles, seek lit areas</div>
   </div>
 
   <div class="emergency-box">
@@ -176,20 +185,31 @@ function generateStepsHtml(segment: RouteSegment, steps: RouteStep[]): string {
   const displayedDistance = displaySteps.reduce((sum, s) => sum + (s.distance || 0), 0);
   const missingDistance = segment.distance - displayedDistance;
 
-  let html = displaySteps.map((s) => `<li>${formatStepInstruction(s)}</li>`).join('\n');
+  let items = displaySteps.map((s) => formatStepWithIcon(s)).join('\n');
 
   // Add waypoints for missing distance
   if (missingDistance > DISTANCE_THRESHOLDS.minMissingDistance && segment.waypoints?.length) {
     for (const wp of segment.waypoints) {
-      html += `\n<li>Continue on <strong>${wp.road}</strong> — ${formatDistance(wp.distance)}</li>`;
+      items += `\n${createStepItem('straight', `Continue on <strong>${wp.road}</strong> — ${formatDistance(wp.distance)}`)}`;
     }
   } else if (missingDistance > DISTANCE_THRESHOLDS.minMissingDistance) {
-    html += `\n<li>Continue on route — ${formatDistance(missingDistance)} (follow map)</li>`;
+    items += `\n${createStepItem('straight', `Continue on route — ${formatDistance(missingDistance)}`)}`;
   }
 
-  if (!html) {
-    html = '<li>Follow the route shown on map</li>';
+  if (!items) {
+    items = createStepItem('straight', 'Follow the route shown on map');
   }
 
-  return html;
+  return items;
+}
+
+function formatStepWithIcon(step: ProcessedStep): string {
+  const iconType = getStepIconType(step.instruction, step.modifier);
+  const text = formatStepInstruction(step);
+  return createStepItem(iconType, text);
+}
+
+function createStepItem(iconType: string, text: string): string {
+  const icon = DIRECTION_ICONS[iconType] || DIRECTION_ICONS['straight'];
+  return `<li><span class="dir-icon">${icon}</span><span class="dir-text">${text}</span></li>`;
 }
