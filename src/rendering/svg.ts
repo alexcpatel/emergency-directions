@@ -76,9 +76,12 @@ export function generateSegmentMapSvg(
         <clipPath id="mapClip-${segment.index}">
           <rect width="${width}" height="${height}"/>
         </clipPath>
+        <filter id="grayscale-${segment.index}">
+          <feColorMatrix type="saturate" values="0"/>
+        </filter>
       </defs>
       <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
-      <g clip-path="url(#mapClip-${segment.index})">${tileImages}</g>
+      <g clip-path="url(#mapClip-${segment.index})" filter="url(#grayscale-${segment.index})">${tileImages}</g>
       <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <path d="${pathD}" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <circle cx="${startX}" cy="${startY}" r="5" fill="#fff" stroke="#000" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
@@ -114,9 +117,12 @@ export function generateOverviewMapSvg(
         <clipPath id="overviewClip">
           <rect width="${width}" height="${height}"/>
         </clipPath>
+        <filter id="grayscale-overview">
+          <feColorMatrix type="saturate" values="0"/>
+        </filter>
       </defs>
       <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
-      <g clip-path="url(#overviewClip)">${tileImages}</g>
+      <g clip-path="url(#overviewClip)" filter="url(#grayscale-overview)">${tileImages}</g>
       <path d="${pathD}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="${pathD}" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="${startX}" cy="${startY}" r="7" fill="#fff" stroke="#000" stroke-width="2"/>

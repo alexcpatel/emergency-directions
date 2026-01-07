@@ -98,12 +98,12 @@ export const MAP_CONFIG = {
   /** Segment map dimensions - compact square */
   segment: { width: 120, height: 120 },
   /** Bounds padding factor */
-  boundsPadding: 0.25,
+  boundsPadding: 0.35,
   /** Max points to sample for SVG paths */
   maxOverviewPoints: 200,
   maxSegmentPoints: 100,
-  /** CartoDB Positron - clean, minimal style perfect for print */
-  tileServerUrl: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+  /** CartoDB Voyager - clean design with POIs, not too cluttered */
+  tileServerUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
   /** Tile size in pixels */
   tileSize: 256,
 } as const;
