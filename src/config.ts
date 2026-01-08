@@ -104,6 +104,8 @@ export const MAP_CONFIG = {
   maxSegmentPoints: 100,
   /** CartoDB Voyager - clean design with POIs, not too cluttered */
   tileServerUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  /** Overview map tile server - no labels for cleaner look */
+  overviewTileServerUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
   /** Tile size in pixels */
   tileSize: 256,
 } as const;

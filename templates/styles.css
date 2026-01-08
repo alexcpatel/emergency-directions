@@ -4,7 +4,12 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-@page { margin: 0.3in; size: letter; }
+@page {
+  margin: 0.3in;
+  size: letter;
+  /* Remove browser default headers/footers */
+  marks: none;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
@@ -284,6 +289,12 @@ footer {
 
 /* Print */
 @media print {
+  @page {
+    margin: 0.3in;
+    /* Remove browser default headers/footers */
+    marks: none;
+  }
+
   body { padding: 0; }
   .segment { page-break-inside: avoid; break-inside: avoid; }
   .segment-header { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

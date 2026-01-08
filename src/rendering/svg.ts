@@ -331,7 +331,7 @@ export function generateOverviewMapSvg(
   const endX = toSvgX(endCoord[0], bounds, width);
   const endY = toSvgY(endCoord[1], bounds, height);
 
-  const tileImages = generateTileImages(bounds, width, height);
+  const tileImages = generateTileImages(bounds, width, height, MAP_CONFIG.overviewTileServerUrl);
 
   return `<svg viewBox="0 0 ${width} ${height}" class="overview-map-svg">
       <defs>
@@ -356,14 +356,15 @@ export function generateOverviewMapSvg(
 /**
  * Generate tile image elements for the map background
  */
-function generateTileImages(bounds: Bounds, width: number, height: number): string {
+function generateTileImages(bounds: Bounds, width: number, height: number, tileServerUrl?: string): string {
   const zoom = calculateZoomLevel(bounds, width, height);
   const tiles = getTilesForBounds(bounds, zoom);
+  const serverUrl = tileServerUrl || MAP_CONFIG.tileServerUrl;
 
   const images: string[] = [];
 
   for (const tile of tiles) {
-    const tileUrl = MAP_CONFIG.tileServerUrl
+    const tileUrl = serverUrl
       .replace('{z}', zoom.toString())
       .replace('{x}', tile.x.toString())
       .replace('{y}', tile.y.toString());

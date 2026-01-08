@@ -152,10 +152,6 @@ ${segmentsWrapped}
       <div class="value">(860) 355-3133</div>
     </div>
   </div>
-
-  <footer>
-    Route generated from OpenStreetMap data via OSRM · Location names via Nominatim · For emergency use
-  </footer>
 </body>
 </html>`;
 }
