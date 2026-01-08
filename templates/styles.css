@@ -298,4 +298,24 @@ footer {
   body { padding: 0; }
   .segment { page-break-inside: avoid; break-inside: avoid; }
   .segment-header { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Ensure maps and images print */
+  svg, .overview-map-svg, .segment-map-svg {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Force images to print */
+  image, img {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Ensure background images print */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

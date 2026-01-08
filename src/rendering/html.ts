@@ -67,13 +67,13 @@ function loadStyles(): string {
 /**
  * Generate complete HTML document
  */
-export function generateHtmlDocument(
+export async function generateHtmlDocument(
   route: OSRMRoute,
   segments: RouteSegment[],
   segmentLocations: SegmentLocation[],
   segmentSteps: RouteStep[][],
   segmentPOIs: POI[][] = []
-): string {
+): Promise<string> {
   const styles = loadStyles();
   const totalDistance = formatDistance(route.distance);
   const walkingHours = route.distance / (1.34 * 3600);
@@ -81,8 +81,8 @@ export function generateHtmlDocument(
   const daysNeeded = calculateDaysNeeded(route.duration);
 
   const coordinates = route.geometry.coordinates;
-  const overviewSvg = generateOverviewMapSvg(coordinates);
-  const segmentsHtml = generateSegmentsHtml(segments, segmentLocations, segmentSteps, segmentPOIs);
+  const overviewSvg = await generateOverviewMapSvg(coordinates);
+  const segmentsHtml = await generateSegmentsHtml(segments, segmentLocations, segmentSteps, segmentPOIs);
   const segmentsWrapped = `<div class="segments-container">${segmentsHtml}</div>`;
 
   return `<!DOCTYPE html>
@@ -156,26 +156,27 @@ ${segmentsWrapped}
 </html>`;
 }
 
-function generateSegmentsHtml(
+async function generateSegmentsHtml(
   segments: RouteSegment[],
   segmentLocations: SegmentLocation[],
   segmentSteps: RouteStep[][],
   segmentPOIs: POI[][]
-): string {
-  return segments
-    .map((seg, i) => generateSegmentHtml(seg, segmentLocations[i], segmentSteps[i], segmentPOIs[i] || []))
-    .join('\n');
+): Promise<string> {
+  const htmlParts = await Promise.all(
+    segments.map((seg, i) => generateSegmentHtml(seg, segmentLocations[i], segmentSteps[i], segmentPOIs[i] || []))
+  );
+  return htmlParts.join('\n');
 }
 
-function generateSegmentHtml(
+async function generateSegmentHtml(
   segment: RouteSegment,
   location: SegmentLocation,
   steps: RouteStep[],
   pois: POI[]
-): string {
+): Promise<string> {
   const segDistance = formatDistance(segment.distance);
   const segDuration = formatDuration(segment.duration);
-  const mapSvg = generateSegmentMapSvg(segment, undefined, pois);
+  const mapSvg = await generateSegmentMapSvg(segment, undefined, pois);
   const stepsHtml = generateStepsHtml(steps);
 
   return `

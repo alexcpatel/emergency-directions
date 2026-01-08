@@ -59,9 +59,9 @@ async function main(): Promise<void> {
     const segmentBounds = segments.map(s => s.bounds);
     const segmentPOIs = await fetchPOIsForSegments(segmentBounds);
 
-    // Step 7: Generate HTML document
-    console.log('\nGenerating HTML...');
-    const html = generateHtmlDocument(route, segments, segmentLocations, segmentSteps, segmentPOIs);
+    // Step 7: Generate HTML document (fetches and embeds map tiles)
+    console.log('\nGenerating HTML with embedded map tiles...');
+    const html = await generateHtmlDocument(route, segments, segmentLocations, segmentSteps, segmentPOIs);
 
     // Step 8: Write output
     const outputDir = path.join(__dirname, '..', OUTPUT_CONFIG.directory);
