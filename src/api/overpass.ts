@@ -84,7 +84,7 @@ out body 20;`;
 }
 
 /**
- * Fetch POIs for all segments with rate limiting
+ * Fetch POIs for all segments with batching and rate limiting
  */
 export async function fetchPOIsForSegments(
   segmentBounds: Bounds[]
@@ -92,14 +92,28 @@ export async function fetchPOIsForSegments(
   console.log('Fetching POIs for segments...');
 
   const allPOIs: POI[][] = [];
+  const batchSize = 3; // Process 3 segments at a time to respect rate limits
+  const totalBatches = Math.ceil(segmentBounds.length / batchSize);
 
-  for (let i = 0; i < segmentBounds.length; i++) {
-    const pois = await fetchPOIsInBounds(segmentBounds[i], i + 1);
-    allPOIs.push(pois);
-    console.log(`  Segment ${i + 1}: ${pois.length} POIs found`);
+  for (let i = 0; i < segmentBounds.length; i += batchSize) {
+    const batch = segmentBounds.slice(i, i + batchSize);
+    const batchNum = Math.floor(i / batchSize) + 1;
+    console.log(`  Fetching batch ${batchNum}/${totalBatches} (${batch.length} segments)...`);
 
-    // Rate limit - 1 request per second
-    if (i < segmentBounds.length - 1) {
+    // Fetch POIs for this batch in parallel
+    const batchPromises = batch.map(async (bounds, batchIdx) => {
+      const segmentIdx = i + batchIdx;
+      console.log(`    Segment ${segmentIdx + 1}: fetching POIs...`);
+      const pois = await fetchPOIsInBounds(bounds, segmentIdx + 1);
+      console.log(`    Segment ${segmentIdx + 1}: ${pois.length} POIs found`);
+      return pois;
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    allPOIs.push(...batchResults);
+
+    // Rate limit between batches - 1 second delay
+    if (i + batchSize < segmentBounds.length) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }

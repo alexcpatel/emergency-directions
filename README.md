@@ -20,6 +20,10 @@ Output: `output/emergency-directions.html`
 
 Open in browser and print.
 
+## Example Output
+
+See [Emergency Walking Directions.pdf](Emergency%20Walking%20Directions.pdf) for an example of the generated output.
+
 ## Features
 
 - Turn-by-turn directions with street names
@@ -31,24 +35,13 @@ Open in browser and print.
 
 Edit `.env` to set start/end locations and segment options:
 
-```
-START_LAT=41.3961
-START_LON=-73.4488
-START_NAME=Danbury City Hall
-START_ADDRESS=155 Deer Hill Avenue, Danbury, CT
-
-END_LAT=41.7004
-END_LON=-73.9210
-END_NAME=Poughkeepsie City Hall
-END_ADDRESS=62 Civic Center Plaza, Poughkeepsie, NY
-
-# Optional: segment configuration
-STEPS_PER_SEGMENT=6
-```
-
 ## Data Sources
 
 - Routing: [OSRM](http://project-osrm.org/)
 - Maps: [OpenStreetMap](https://www.openstreetmap.org/) via CartoDB
 - POIs: [Overpass API](https://overpass-api.de/)
 - Geocoding: [Nominatim](https://nominatim.org/)
+
+## TODO
+
+- Improve routing and street names.

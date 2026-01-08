@@ -82,19 +82,67 @@ export function extractLocationName(data: NominatimResponse | null): string {
 /**
  * Fetch location names for all segments
  * Chains names so end of segment N = start of segment N+1
+ * Batches requests in parallel for speed
  */
 export async function fetchSegmentLocations(
   segments: RouteSegment[]
 ): Promise<SegmentLocation[]> {
   console.log('Fetching location names for segments...');
 
-  const locations: SegmentLocation[] = [];
+  if (segments.length === 0) return [];
 
-  // Track last end name/addr to chain segments together
+  // Collect all unique coordinates we need to fetch
+  // We need: segment 1 start, and all segment ends
+  const coordsToFetch: Array<{ lat: number; lon: number; type: 'start' | 'end'; segmentIndex: number }> = [];
+
+  // First segment's start
+  coordsToFetch.push({
+    lat: segments[0].startCoord[1],
+    lon: segments[0].startCoord[0],
+    type: 'start',
+    segmentIndex: 0,
+  });
+
+  // All segment ends
+  segments.forEach((seg, idx) => {
+    coordsToFetch.push({
+      lat: seg.endCoord[1],
+      lon: seg.endCoord[0],
+      type: 'end',
+      segmentIndex: idx,
+    });
+  });
+
+  // Batch fetch all coordinates in parallel (with concurrency limit)
+  const batchSize = 5; // Process 5 requests at a time
+  const results: Map<string, NominatimResponse | null> = new Map();
+  const totalBatches = Math.ceil(coordsToFetch.length / batchSize);
+
+  for (let i = 0; i < coordsToFetch.length; i += batchSize) {
+    const batch = coordsToFetch.slice(i, i + batchSize);
+    const batchNum = Math.floor(i / batchSize) + 1;
+    console.log(`  Fetching batch ${batchNum}/${totalBatches} (${batch.length} locations)...`);
+
+    const batchPromises = batch.map(async (coord) => {
+      const key = `${coord.lat},${coord.lon}`;
+      if (!results.has(key)) {
+        const data = await fetchPlaceName(coord.lat, coord.lon);
+        results.set(key, data);
+      }
+      return { coord, data: results.get(key)! };
+    });
+
+    await Promise.all(batchPromises);
+  }
+
+  // Build locations array using fetched data and log as we build
+  const locations: SegmentLocation[] = [];
   let lastEndName: string | null = null;
   let lastEndAddr: NominatimAddress | undefined = undefined;
 
-  for (const seg of segments) {
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+
     // Start name: use previous segment's end name, or fetch fresh for first segment
     let startName: string;
     let startAddr: NominatimAddress | undefined;
@@ -103,13 +151,15 @@ export async function fetchSegmentLocations(
       startName = lastEndName;
       startAddr = lastEndAddr;
     } else {
-      const startData = await fetchPlaceName(seg.startCoord[1], seg.startCoord[0]);
+      const startKey = `${seg.startCoord[1]},${seg.startCoord[0]}`;
+      const startData = results.get(startKey) || null;
       startName = extractLocationName(startData);
       startAddr = startData?.address;
     }
 
-    // Always fetch end name fresh
-    const endData = await fetchPlaceName(seg.endCoord[1], seg.endCoord[0]);
+    // Get end name from fetched data
+    const endKey = `${seg.endCoord[1]},${seg.endCoord[0]}`;
+    const endData = results.get(endKey) || null;
     const endName = extractLocationName(endData);
 
     locations.push({
@@ -123,6 +173,7 @@ export async function fetchSegmentLocations(
     lastEndName = endName;
     lastEndAddr = endData?.address;
 
+    // Log as we complete each segment
     console.log(`  Segment ${seg.index}: ${startName} → ${endName}`);
   }
 

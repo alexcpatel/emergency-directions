@@ -1,5 +1,5 @@
 /**
- * SVG map rendering with OpenStreetMap tile backgrounds
+ * SVG map rendering
  * Maintains proper geographic aspect ratio (north up, no stretching)
  */
 
@@ -7,54 +7,6 @@ import { RouteSegment, Bounds, MapDimensions } from '../types';
 import { MAP_CONFIG } from '../config';
 import { calculateBounds, sampleCoordinates } from '../utils/geo';
 import { POI } from '../api/overpass';
-
-/**
- * Fetch a tile image and convert to base64 data URI with retry
- */
-async function fetchTileAsBase64(url: string, retries = 2): Promise<string> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        if (attempt < retries) continue;
-        return url;
-      }
-      const buffer = await response.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
-      const contentType = response.headers.get('content-type') || 'image/png';
-      return `data:${contentType};base64,${base64}`;
-    } catch (error) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
-        continue;
-      }
-      return url; // Fall back to URL
-    }
-  }
-  return url;
-}
-
-/**
- * Fetch tiles in batches to avoid overwhelming the server
- */
-async function fetchTilesInBatches(urls: string[], batchSize = 10): Promise<string[]> {
-  const results: string[] = [];
-  for (let i = 0; i < urls.length; i += batchSize) {
-    const batch = urls.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(url => fetchTileAsBase64(url)));
-    results.push(...batchResults);
-    // Small delay between batches
-    if (i + batchSize < urls.length) {
-      await new Promise(r => setTimeout(r, 100));
-    }
-  }
-  return results;
-}
 
 /**
  * Adjust bounds to maintain proper aspect ratio for the viewport
@@ -119,7 +71,7 @@ export async function generateSegmentMapSvg(
   const endX = toSvgX(endCoord[0], bounds, width);
   const endY = toSvgY(endCoord[1], bounds, height);
 
-  const tileImages = await generateTileImages(bounds, width, height);
+  const tileImages = generateTileImages(bounds, width, height);
   const poiMarkers = generatePOIMarkers(pois, bounds, width, height, segment.index, sampledCoords, startX, startY, endX, endY);
 
   return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice" class="segment-map-svg">
@@ -376,8 +328,7 @@ export async function generateOverviewMapSvg(
   const endX = toSvgX(endCoord[0], bounds, width);
   const endY = toSvgY(endCoord[1], bounds, height);
 
-  // Use lower zoom (max 11) for overview to reduce tile count
-  const tileImages = await generateTileImages(bounds, width, height, MAP_CONFIG.overviewTileServerUrl, 11);
+  const tileImages = generateTileImages(bounds, width, height, MAP_CONFIG.overviewTileServerUrl, 11);
 
   return `<svg viewBox="0 0 ${width} ${height}" class="overview-map-svg">
       <defs>
@@ -386,25 +337,45 @@ export async function generateOverviewMapSvg(
         </clipPath>
       </defs>
       <rect width="${width}" height="${height}" fill="#e8e8e8" stroke="#999"/>
-      <g clip-path="url(#overviewClip)">${tileImages}</g>
+      <g clip-path="url(#overviewClip)">${tileImages}
       <path d="${pathD}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="${pathD}" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="${startX}" cy="${startY}" r="7" fill="#fff" stroke="#000" stroke-width="2"/>
       <text x="${startX + 10}" y="${startY + 4}" font-size="9" font-weight="bold" fill="#000">START</text>
       <circle cx="${endX}" cy="${endY}" r="7" fill="#000" stroke="#fff" stroke-width="2"/>
       <text x="${endX + 10}" y="${endY + 4}" font-size="9" font-weight="bold" fill="#000">END</text>
+      </g>
     </svg>`;
 }
 
+
+function generateSvgPath(coordinates: Array<[number, number]>, bounds: Bounds, width: number, height: number): string {
+  return coordinates
+    .map(([lon, lat], i) => {
+      const x = toSvgX(lon, bounds, width).toFixed(1);
+      const y = toSvgY(lat, bounds, height).toFixed(1);
+      return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+    })
+    .join(' ');
+}
+
+function toSvgX(lon: number, bounds: Bounds, width: number): number {
+  const lonRange = bounds.maxLon - bounds.minLon;
+  return ((lon - bounds.minLon) / lonRange) * width;
+}
+
+function toSvgY(lat: number, bounds: Bounds, height: number): number {
+  const latRange = bounds.maxLat - bounds.minLat;
+  return height - ((lat - bounds.minLat) / latRange) * height;
+}
+
 /**
- * Generate tile image elements for the map background (with embedded base64 images)
+ * Generate tile image elements for the map background (using direct URLs, no downloading)
  */
-async function generateTileImages(bounds: Bounds, width: number, height: number, tileServerUrl?: string, maxZoom = 16): Promise<string> {
+function generateTileImages(bounds: Bounds, width: number, height: number, tileServerUrl?: string, maxZoom = 16): string {
   const zoom = Math.min(calculateZoomLevel(bounds, width, height), maxZoom);
   const tiles = getTilesForBounds(bounds, zoom);
   const serverUrl = tileServerUrl || MAP_CONFIG.tileServerUrl;
-
-  console.log(`  Fetching ${tiles.length} tiles at zoom ${zoom}...`);
 
   // Build tile info with positions
   const tileInfos = tiles.map(tile => {
@@ -429,15 +400,9 @@ async function generateTileImages(bounds: Bounds, width: number, height: number,
     };
   });
 
-  // Fetch tiles in batches to avoid overwhelming the server
-  const tileDataUris = await fetchTilesInBatches(
-    tileInfos.map(info => info.url),
-    10 // 10 tiles at a time
-  );
-
-  // Generate image elements with embedded data URIs
-  const images = tileInfos.map((info, i) =>
-    `<image href="${tileDataUris[i]}" x="${info.left}" y="${info.top}" width="${info.width}" height="${info.height}" preserveAspectRatio="none"/>`
+  // Generate image elements with direct URLs (no downloading/embedding)
+  const images = tileInfos.map((info) =>
+    `<image href="${info.url}" x="${info.left}" y="${info.top}" width="${info.width}" height="${info.height}" preserveAspectRatio="none"/>`
   );
 
   return images.join('');
@@ -505,24 +470,4 @@ function getTileBounds(x: number, y: number, zoom: number): { minLat: number; ma
   const maxLat = (maxLatRad * 180) / Math.PI;
 
   return { minLat, maxLat, minLon, maxLon };
-}
-
-function generateSvgPath(coordinates: Array<[number, number]>, bounds: Bounds, width: number, height: number): string {
-  return coordinates
-    .map(([lon, lat], i) => {
-      const x = toSvgX(lon, bounds, width).toFixed(1);
-      const y = toSvgY(lat, bounds, height).toFixed(1);
-      return `${i === 0 ? 'M' : 'L'}${x},${y}`;
-    })
-    .join(' ');
-}
-
-function toSvgX(lon: number, bounds: Bounds, width: number): number {
-  const lonRange = bounds.maxLon - bounds.minLon;
-  return ((lon - bounds.minLon) / lonRange) * width;
-}
-
-function toSvgY(lat: number, bounds: Bounds, height: number): number {
-  const latRange = bounds.maxLat - bounds.minLat;
-  return height - ((lat - bounds.minLat) / latRange) * height;
 }
