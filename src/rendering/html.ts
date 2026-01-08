@@ -11,6 +11,7 @@ import {
   RouteStep,
   ProcessedStep,
 } from '../types';
+import { POI } from '../api/overpass';
 import { ROUTE_CONFIG } from '../config';
 import {
   formatDistance,
@@ -70,7 +71,8 @@ export function generateHtmlDocument(
   route: OSRMRoute,
   segments: RouteSegment[],
   segmentLocations: SegmentLocation[],
-  segmentSteps: RouteStep[][]
+  segmentSteps: RouteStep[][],
+  segmentPOIs: POI[][] = []
 ): string {
   const styles = loadStyles();
   const totalDistance = formatDistance(route.distance);
@@ -80,7 +82,7 @@ export function generateHtmlDocument(
 
   const coordinates = route.geometry.coordinates;
   const overviewSvg = generateOverviewMapSvg(coordinates);
-  const segmentsHtml = generateSegmentsHtml(segments, segmentLocations, segmentSteps);
+  const segmentsHtml = generateSegmentsHtml(segments, segmentLocations, segmentSteps, segmentPOIs);
   const segmentsWrapped = `<div class="segments-container">${segmentsHtml}</div>`;
 
   return `<!DOCTYPE html>
@@ -161,21 +163,23 @@ ${segmentsWrapped}
 function generateSegmentsHtml(
   segments: RouteSegment[],
   segmentLocations: SegmentLocation[],
-  segmentSteps: RouteStep[][]
+  segmentSteps: RouteStep[][],
+  segmentPOIs: POI[][]
 ): string {
   return segments
-    .map((seg, i) => generateSegmentHtml(seg, segmentLocations[i], segmentSteps[i]))
+    .map((seg, i) => generateSegmentHtml(seg, segmentLocations[i], segmentSteps[i], segmentPOIs[i] || []))
     .join('\n');
 }
 
 function generateSegmentHtml(
   segment: RouteSegment,
   location: SegmentLocation,
-  steps: RouteStep[]
+  steps: RouteStep[],
+  pois: POI[]
 ): string {
   const segDistance = formatDistance(segment.distance);
   const segDuration = formatDuration(segment.duration);
-  const mapSvg = generateSegmentMapSvg(segment);
+  const mapSvg = generateSegmentMapSvg(segment, undefined, pois);
   const stepsHtml = generateStepsHtml(steps);
 
   return `

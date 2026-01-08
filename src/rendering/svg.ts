@@ -6,6 +6,7 @@
 import { RouteSegment, Bounds, MapDimensions } from '../types';
 import { MAP_CONFIG } from '../config';
 import { calculateBounds, sampleCoordinates } from '../utils/geo';
+import { POI } from '../api/overpass';
 
 /**
  * Adjust bounds to maintain proper aspect ratio for the viewport
@@ -53,7 +54,8 @@ function adjustBoundsForAspectRatio(
  */
 export function generateSegmentMapSvg(
   segment: RouteSegment,
-  dimensions: MapDimensions = MAP_CONFIG.segment
+  dimensions: MapDimensions = MAP_CONFIG.segment,
+  pois: POI[] = []
 ): string {
   const { width, height } = dimensions;
   const { coordinates, startCoord, endCoord } = segment;
@@ -70,6 +72,7 @@ export function generateSegmentMapSvg(
   const endY = toSvgY(endCoord[1], bounds, height);
 
   const tileImages = generateTileImages(bounds, width, height);
+  const poiMarkers = generatePOIMarkers(pois, bounds, width, height, segment.index, sampledCoords, startX, startY, endX, endY);
 
   return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice" class="segment-map-svg">
       <defs>
@@ -84,9 +87,172 @@ export function generateSegmentMapSvg(
       <g clip-path="url(#mapClip-${segment.index})" filter="url(#grayscale-${segment.index})">${tileImages}</g>
       <path d="${pathD}" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <path d="${pathD}" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      ${poiMarkers}
       <circle cx="${startX}" cy="${startY}" r="5" fill="#fff" stroke="#000" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
       <circle cx="${endX}" cy="${endY}" r="5" fill="#000" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     </svg>`;
+}
+
+// Lucide POI icons (24x24 viewBox) - actual Lucide paths
+const POI_ICONS: Record<string, string> = {
+  // Lucide 'cross' - medical cross
+  'hospital': `<path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h5v5c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2h-2z"/>`,
+  // Lucide 'flame'
+  'fire-station': `<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>`,
+  // Lucide 'shield'
+  'police': `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>`,
+  // Lucide 'church'
+  'church': `<path d="m18 7 4 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9l4-2"/><path d="M14 22v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4"/><path d="M18 22V5l-6-3-6 3v17"/><path d="M12 7v5"/><path d="M10 9h4"/>`,
+  // Lucide 'fuel'
+  'gas': `<line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>`,
+  // Lucide 'graduation-cap'
+  'school': `<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>`,
+};
+
+/**
+ * Calculate minimum distance from a point to any point on the route (in degrees, approximate)
+ */
+function minDistanceToRoute(
+  poiLon: number,
+  poiLat: number,
+  routeCoords: Array<[number, number]>
+): number {
+  let minDist = Infinity;
+  for (const [lon, lat] of routeCoords) {
+    // Simple Euclidean distance in degrees (good enough for filtering)
+    const dist = Math.sqrt(Math.pow(lon - poiLon, 2) + Math.pow(lat - poiLat, 2));
+    if (dist < minDist) minDist = dist;
+  }
+  return minDist;
+}
+
+/**
+ * Determine which side of the route a POI is on
+ * Returns 'left' or 'right'
+ */
+function getPOISideOfRoute(
+  poiX: number,
+  poiY: number,
+  routeCoords: Array<[number, number]>,
+  bounds: Bounds,
+  width: number,
+  height: number
+): 'left' | 'right' {
+  // Find nearest route point in SVG coordinates
+  let nearestRouteX = poiX;
+  let minDist = Infinity;
+
+  for (const coord of routeCoords) {
+    // Handle both [lon, lat] and already-converted coordinates
+    const [lon, lat] = coord;
+    const routeX = toSvgX(lon, bounds, width);
+    const routeY = toSvgY(lat, bounds, height);
+    const dist = Math.sqrt(Math.pow(routeX - poiX, 2) + Math.pow(routeY - poiY, 2));
+    if (dist < minDist) {
+      minDist = dist;
+      nearestRouteX = routeX;
+    }
+  }
+
+  // If POI is to the left of route, place icon on left; otherwise on right
+  return poiX < nearestRouteX ? 'left' : 'right';
+}
+
+/**
+ * Generate POI markers for the map
+ */
+function generatePOIMarkers(
+  pois: POI[],
+  bounds: Bounds,
+  width: number,
+  height: number,
+  segmentIndex: number,
+  routeCoords: Array<[number, number]>,
+  startX?: number,
+  startY?: number,
+  endX?: number,
+  endY?: number
+): string {
+  if (pois.length === 0) return '';
+
+  // Filter POIs to those close to the route (within ~0.005 degrees ≈ 500m)
+  const MAX_DISTANCE = 0.005;
+  const nearbyPois = pois.filter((poi) =>
+    minDistanceToRoute(poi.lon, poi.lat, routeCoords) < MAX_DISTANCE
+  );
+
+  const markers: string[] = [];
+  const usedLabelPositions: Array<{ x: number; y: number }> = [];
+  const MAX_DISPLAYED = 3;
+  const MIN_LABEL_DISTANCE = 18; // Minimum distance between label centers
+  const BASE_OFFSET = 12; // Base distance from dot to icon
+  const START_END_BUFFER = 8; // Extra distance to avoid start/end markers
+
+  // Show up to 3 nearby POIs, avoiding overlaps (already sorted by priority)
+  for (const poi of nearbyPois) {
+    if (markers.length >= MAX_DISPLAYED) break;
+
+    const x = toSvgX(poi.lon, bounds, width);
+    const y = toSvgY(poi.lat, bounds, height);
+
+    // Determine which side of route POI is on
+    const side = getPOISideOfRoute(x, y, routeCoords, bounds, width, height);
+    let offsetX = side === 'left' ? -BASE_OFFSET : BASE_OFFSET;
+
+    // Check if label would overlap with start/end markers
+    const nearStart = startX !== undefined && startY !== undefined &&
+      Math.abs(x - startX) < 15 && Math.abs(y - startY) < 15;
+    const nearEnd = endX !== undefined && endY !== undefined &&
+      Math.abs(x - endX) < 15 && Math.abs(y - endY) < 15;
+
+    // Extend line further if near start/end
+    if (nearStart || nearEnd) {
+      offsetX = offsetX > 0 ? BASE_OFFSET + START_END_BUFFER : -(BASE_OFFSET + START_END_BUFFER);
+    }
+
+    const labelX = x + offsetX;
+
+    // Check if label position overlaps with existing labels
+    const overlaps = usedLabelPositions.some(
+      (pos) => Math.abs(pos.x - labelX) < MIN_LABEL_DISTANCE && Math.abs(pos.y - y) < MIN_LABEL_DISTANCE
+    );
+
+    if (overlaps) continue; // Skip this POI if it overlaps
+
+    usedLabelPositions.push({ x: labelX, y });
+
+    // Truncate long names
+    const name = poi.name.length > 12 ? poi.name.substring(0, 10) + '…' : poi.name;
+    const iconPath = POI_ICONS[poi.iconType] || POI_ICONS['hospital'];
+
+    // Render Lucide icon scaled down (24x24 -> 6x6)
+    const iconSize = 6;
+    const scale = iconSize / 24;
+
+    markers.push(`<g class="poi">
+        <circle cx="${x}" cy="${y}" r="1.5" fill="#666"/>
+        <line x1="${x}" y1="${y}" x2="${labelX}" y2="${y}" stroke="#666" stroke-width="0.3"/>
+        <rect x="${labelX - 4}" y="${y - 4}" width="8" height="8" fill="#fff" stroke="#666" stroke-width="0.4" rx="1"/>
+        <g transform="translate(${labelX - 3}, ${y - 3}) scale(${scale})">
+          <g fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${iconPath}</g>
+        </g>
+        <text x="${labelX}" y="${y + 8}" font-size="3" fill="#333" font-family="sans-serif" text-anchor="middle">${escapeXml(name)}</text>
+      </g>`);
+  }
+
+  return markers.join('\n      ');
+}
+
+/**
+ * Escape XML special characters
+ */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /**

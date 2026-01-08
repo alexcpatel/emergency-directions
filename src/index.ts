@@ -10,6 +10,7 @@ import * as path from 'path';
 import { ROUTE_CONFIG, OUTPUT_CONFIG, ROUTE_CONFIG_PROCESSING } from './config';
 import { fetchRoute, extractSteps } from './api/osrm';
 import { fetchSegmentLocations } from './api/nominatim';
+import { fetchPOIsForSegments } from './api/overpass';
 import { segmentRoute } from './processing/route';
 import { groupStepsBySegment } from './processing/steps';
 import { generateHtmlDocument } from './rendering/html';
@@ -53,11 +54,16 @@ async function main(): Promise<void> {
       console.log(`  Segment ${i + 1}: ${steps.length} steps - ${roads || 'none'}`);
     });
 
-    // Step 6: Generate HTML document
-    console.log('\nGenerating HTML...');
-    const html = generateHtmlDocument(route, segments, segmentLocations, segmentSteps);
+    // Step 6: Fetch POIs for each segment
+    console.log('');
+    const segmentBounds = segments.map(s => s.bounds);
+    const segmentPOIs = await fetchPOIsForSegments(segmentBounds);
 
-    // Step 7: Write output
+    // Step 7: Generate HTML document
+    console.log('\nGenerating HTML...');
+    const html = generateHtmlDocument(route, segments, segmentLocations, segmentSteps, segmentPOIs);
+
+    // Step 8: Write output
     const outputDir = path.join(__dirname, '..', OUTPUT_CONFIG.directory);
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
