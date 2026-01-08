@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 import { API_ENDPOINTS, API_CONFIG } from '../config';
-import { NominatimResponse, NominatimAddress, RouteSegment, SegmentLocation, Waypoint } from '../types';
+import { NominatimResponse, NominatimAddress, RouteSegment, SegmentLocation, Waypoint, RouteStep } from '../types';
 import { calculatePathDistance } from '../utils/geo';
 
 // Request queue for rate limiting

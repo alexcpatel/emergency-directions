@@ -13,21 +13,24 @@ export function groupStepsBySegment(
   steps: RouteStep[],
   segments: RouteSegment[]
 ): RouteStep[][] {
-  if (segments[0]?.stepRange) {
-    return segments.map(seg => {
-      const [start, end] = seg.stepRange!;
+  return segments.map(seg => {
+    if (seg.stepRange) {
+      const [start, end] = seg.stepRange;
       return steps.slice(start, end + 1);
-    });
-  }
-
-  // Fallback
-  const segmentSteps: RouteStep[][] = segments.map(() => []);
-  for (const step of steps) {
-    if (!step.location) continue;
-    const idx = findSegmentForCoordinate(step.location[0], step.location[1], segments);
-    segmentSteps[idx].push(step);
-  }
-  return segmentSteps;
+    }
+    // Fallback: find steps whose locations are within this segment's bounds
+    const segmentSteps: RouteStep[] = [];
+    for (const step of steps) {
+      if (!step.location) continue;
+      const [lon, lat] = step.location;
+      // Check if step is within segment bounds
+      if (lon >= seg.bounds.minLon && lon <= seg.bounds.maxLon &&
+        lat >= seg.bounds.minLat && lat <= seg.bounds.maxLat) {
+        segmentSteps.push(step);
+      }
+    }
+    return segmentSteps;
+  });
 }
 
 /**
@@ -44,11 +47,11 @@ export function processStepsForDisplay(steps: RouteStep[]): ProcessedStep[] {
 }
 
 /**
- * Filter to reasonable number for display
+ * Filter steps for display - return all steps from OSRM unchanged
  */
-export function filterStepsForDisplay(steps: ProcessedStep[], maxSteps: number = 10): ProcessedStep[] {
-  // Keep all significant steps, just limit count
-  return steps.slice(0, maxSteps);
+export function filterStepsForDisplay(steps: ProcessedStep[], _maxSteps?: number): ProcessedStep[] {
+  // Return all steps exactly as OSRM provided them
+  return steps;
 }
 
 /**

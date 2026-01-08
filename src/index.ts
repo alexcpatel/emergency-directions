@@ -26,19 +26,19 @@ async function main(): Promise<void> {
     const route = await fetchRoute(ROUTE_CONFIG.start, ROUTE_CONFIG.end);
     console.log(`Route found: ${formatDistance(route.distance)}, ${formatDuration(route.duration)}\n`);
 
-    // Step 2: Extract navigation steps
+    // Step 2: Extract navigation steps (use OSRM data as-is)
     const steps = extractSteps(route);
     console.log(`Total navigation steps: ${steps.length}`);
 
-    // Debug: show first 10 steps raw
+    // Debug: show first 10 steps
     console.log('\nFirst 10 steps from OSRM:');
     steps.slice(0, 10).forEach((s, i) => {
-      console.log(`  ${i + 1}. ${s.instruction} ${s.modifier || ''} -> "${s.name}" (${Math.round(s.distance)}m) at [${s.location[0].toFixed(4)}, ${s.location[1].toFixed(4)}]`);
+      console.log(`  ${i + 1}. ${s.instruction} ${s.modifier || ''} -> "${s.name || '(unnamed)'}" (${Math.round(s.distance)}m)`);
     });
     console.log('');
 
-    // Step 3: Segment the route based on steps (not coordinates)
-    const segments = segmentRoute(route, ROUTE_CONFIG_PROCESSING.numSegments, steps);
+    // Step 3: Segment the route by distance (~1 mile per segment)
+    const segments = segmentRoute(route, undefined, steps);
     console.log(`Route split into ${segments.length} segments\n`);
 
     // Step 4: Fetch location names (this is the slow part due to rate limiting)

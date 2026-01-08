@@ -26,6 +26,68 @@ import {
   getStepIconType,
 } from '../processing/steps';
 
+// State Police phone numbers
+const STATE_POLICE_NUMBERS: Record<string, { name: string; phone: string }> = {
+  'NY': { name: 'NY State Police', phone: '(518) 457-6811' },
+  'NJ': { name: 'NJ State Police', phone: '(609) 882-2000' },
+  'CT': { name: 'CT State Police', phone: '(860) 685-8190' },
+  'PA': { name: 'PA State Police', phone: '(717) 783-5517' },
+  'MA': { name: 'MA State Police', phone: '(508) 820-2300' },
+  'VT': { name: 'VT State Police', phone: '(802) 244-8727' },
+  'NH': { name: 'NH State Police', phone: '(603) 223-4381' },
+  'ME': { name: 'ME State Police', phone: '(207) 624-7076' },
+  'RI': { name: 'RI State Police', phone: '(401) 444-1000' },
+  'DE': { name: 'DE State Police', phone: '(302) 739-5901' },
+  'MD': { name: 'MD State Police', phone: '(410) 653-4200' },
+  'VA': { name: 'VA State Police', phone: '(804) 674-2000' },
+  'WV': { name: 'WV State Police', phone: '(304) 746-2100' },
+  'OH': { name: 'OH State Highway Patrol', phone: '(614) 466-2660' },
+};
+
+/**
+ * Extract state abbreviation from address string
+ */
+function extractState(address: string): string | null {
+  // Common state abbreviations
+  const statePattern = /\b(NY|NJ|CT|PA|MA|VT|NH|ME|RI|DE|MD|VA|WV|OH)\b/i;
+  const match = address.match(statePattern);
+  return match ? match[1].toUpperCase() : null;
+}
+
+/**
+ * Generate emergency box HTML with dynamic state police numbers
+ */
+function generateEmergencyBox(): string {
+  const startState = extractState(ROUTE_CONFIG.start.address);
+  const endState = extractState(ROUTE_CONFIG.end.address);
+
+  // Collect unique states
+  const states = new Set<string>();
+  if (startState) states.add(startState);
+  if (endState) states.add(endState);
+
+  // Generate state police items
+  const stateItems = Array.from(states)
+    .map(state => {
+      const info = STATE_POLICE_NUMBERS[state];
+      if (!info) return '';
+      return `
+    <div class="item">
+      <div class="label">${info.name}</div>
+      <div class="value">${info.phone}</div>
+    </div>`;
+    })
+    .filter(Boolean)
+    .join('');
+
+  return `<div class="emergency-box">
+    <div class="item">
+      <div class="label">Emergency</div>
+      <div class="value">911</div>
+    </div>${stateItems}
+  </div>`;
+}
+
 // Lucide SVG icons for directions - only real Lucide icons
 const DIRECTION_ICONS: Record<string, string> = {
   // Lucide arrow-up
@@ -138,20 +200,7 @@ ${segmentsWrapped}
     <div class="survival-item"><strong>Emergency</strong>Call 911, flag vehicles, seek lit areas</div>
   </div>
 
-  <div class="emergency-box">
-    <div class="item">
-      <div class="label">Emergency</div>
-      <div class="value">911</div>
-    </div>
-    <div class="item">
-      <div class="label">NY State Police</div>
-      <div class="value">(914) 769-2600</div>
-    </div>
-    <div class="item">
-      <div class="label">CT State Police</div>
-      <div class="value">(860) 355-3133</div>
-    </div>
-  </div>
+  ${generateEmergencyBox()}
 </body>
 </html>`;
 }

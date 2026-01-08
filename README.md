@@ -29,18 +29,23 @@ Open in browser and print (with "Background graphics" enabled).
 
 ## Configuration
 
-Edit `.env` to set start/end locations:
+Edit `.env` to set start/end locations and segment options:
 
 ```
 START_LAT=...
 START_LON=...
 START_NAME=Home
-START_ADDRESS=...
+START_ADDRESS=City, NY
 
 END_LAT=...
 END_LON=...
 END_NAME=Destination
-END_ADDRESS=...
+END_ADDRESS=Town, NJ
+
+# Optional: segment configuration
+SEGMENT_MODE=distance   # 'distance' or 'count'
+MILES_PER_SEGMENT=1     # when mode is 'distance'
+NUM_SEGMENTS=10         # when mode is 'count'
 ```
 
 ## Data Sources
