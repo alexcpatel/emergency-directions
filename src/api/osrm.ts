@@ -44,6 +44,7 @@ export function extractSteps(route: OSRMRoute): RouteStep[] {
           instruction: step.maneuver.type,
           modifier: step.maneuver.modifier,
           name: step.name || '',
+          ref: step.ref,
           distance: step.distance,
           duration: step.distance / WALKING_SPEED_MPS,
           location: step.maneuver.location,

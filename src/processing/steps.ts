@@ -38,6 +38,7 @@ export function processStepsForDisplay(steps: RouteStep[]): ProcessedStep[] {
     instruction: step.instruction,
     modifier: step.modifier || null,
     name: step.name,
+    ref: step.ref,
     distance: step.distance,
   }));
 }
@@ -57,17 +58,34 @@ export function formatStepInstruction(step: ProcessedStep): string {
   const action = formatAction(step.instruction, step.modifier);
   const dist = step.distance > 50 ? `<span class="step-dist">${formatDistance(step.distance)}</span>` : '';
 
-  if (step.name) {
-    // Use "onto" for turns, "on" for continues
-    const preposition = step.instruction === 'turn' || step.instruction === 'end of road' ? 'onto' : 'on';
-    return `${action} ${preposition} <strong>${step.name}</strong>${dist}`;
+  // Build road name: prefer name, fall back to ref (route number)
+  let roadName = '';
+  if (step.name && step.name.trim()) {
+    roadName = step.name;
+    // Add route number in parentheses if different from name
+    if (step.ref && step.ref.trim() && !step.name.includes(step.ref)) {
+      roadName += ` (${step.ref})`;
+    }
+  } else if (step.ref && step.ref.trim()) {
+    // Only route number available
+    roadName = step.ref;
   }
+
+  if (roadName) {
+    // Use "onto" for turns/direction changes, "on" for continues
+    const isTurn = step.instruction === 'turn' || step.instruction === 'end of road' || step.instruction === 'fork';
+    const preposition = isTurn ? 'onto' : 'on';
+    return `${action} ${preposition} <strong>${roadName}</strong>${dist}`;
+  }
+
+  // No road info - just show action with distance
   return `${action}${dist}`;
 }
 
 function formatAction(instruction: string, modifier?: string | null): string {
-  // Format direction exactly as API says
+  // Format direction - handle "straight" as "continue" not "turn"
   const dir = modifier ? modifier.toUpperCase() : '';
+  const isStraight = modifier === 'straight' || !modifier;
 
   switch (instruction) {
     case 'depart':
@@ -75,27 +93,31 @@ function formatAction(instruction: string, modifier?: string | null): string {
     case 'arrive':
       return 'Arrive';
     case 'turn':
-      return `Turn ${dir}`.trim();
+      // "Turn STRAIGHT" doesn't make sense - use "Continue" instead
+      if (isStraight) return 'Continue';
+      return `Turn ${dir}`;
     case 'new name':
-      return dir ? `Continue ${dir}` : 'Continue';
+      // Road name changes
+      if (isStraight) return 'Continue';
+      return `Bear ${dir}`;
     case 'continue':
       return 'Continue';
     case 'merge':
-      return dir ? `Merge ${dir}` : 'Merge';
+      return dir && !isStraight ? `Merge ${dir}` : 'Merge';
     case 'fork':
-      return dir ? `At the fork, take a ${dir}` : 'At the fork';
+      return dir && !isStraight ? `At the fork, take a ${dir}` : 'At the fork, stay on route';
     case 'end of road':
-      return dir ? `At the end of the road, take a ${dir}` : 'At the end of the road';
+      return dir && !isStraight ? `At the end of the road, take a ${dir}` : 'At the end of the road';
     case 'roundabout':
-      return dir ? `At the roundabout, take a ${dir}` : 'Roundabout';
+      return dir && !isStraight ? `At the roundabout, take a ${dir}` : 'Roundabout';
     case 'on ramp':
-      return dir ? `On ramp ${dir}` : 'On ramp';
+      return dir && !isStraight ? `On ramp ${dir}` : 'On ramp';
     case 'off ramp':
-      return dir ? `Off ramp ${dir}` : 'Off ramp';
+      return dir && !isStraight ? `Off ramp ${dir}` : 'Off ramp';
     case 'notification':
       return 'Note';
     default:
-      return dir ? `Continue ${dir}` : 'Continue';
+      return 'Continue';
   }
 }
 

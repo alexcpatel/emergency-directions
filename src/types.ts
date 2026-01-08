@@ -32,6 +32,7 @@ export interface OSRMManeuver {
 export interface OSRMStep {
   maneuver: OSRMManeuver;
   name: string;
+  ref?: string; // Route number (e.g., "US-6", "NY-35")
   distance: number;
   duration: number;
 }
@@ -77,6 +78,7 @@ export interface RouteStep {
   instruction: string;
   modifier?: string;
   name: string;
+  ref?: string; // Route number
   distance: number;
   duration: number;
   location: [number, number];
@@ -111,6 +113,7 @@ export interface ProcessedStep {
   instruction: string;
   modifier?: string | null;
   name: string;
+  ref?: string; // Route number
   distance: number;
   aggregated?: boolean;
 }
