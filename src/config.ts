@@ -69,20 +69,8 @@ export const API_CONFIG = {
 
 // Route processing
 export const ROUTE_CONFIG_PROCESSING = {
-  /**
-   * Segment mode: 'distance' or 'count'
-   * - 'distance': segments are created based on milesPerSegment
-   * - 'count': route is divided into numSegments equal parts
-   */
-  segmentMode: (process.env.SEGMENT_MODE || 'distance') as 'distance' | 'count',
-  /** Miles per segment (when mode is 'distance') */
-  milesPerSegment: parseFloat(process.env.MILES_PER_SEGMENT || '1'),
-  /** Number of segments (when mode is 'count') */
-  numSegments: parseInt(process.env.NUM_SEGMENTS || '10', 10),
-  /** Minimum steps per segment */
-  minStepsPerSegment: 2,
-  /** Maximum steps per segment (only enforced in 'count' mode) */
-  maxStepsPerSegment: 20,
+  /** Number of steps per segment */
+  stepsPerSegment: parseInt(process.env.STEPS_PER_SEGMENT || '4', 10),
   /** Average walking speed in meters per second (3 mph) */
   walkingSpeedMps: 1.34,
   /** Walking hours per day for planning */

@@ -1,13 +1,12 @@
 /**
  * Emergency Directions Generator
  *
- * Generates a printable walking route from Columbia University to Sherman, CT
- * using OpenStreetMap routing and geocoding APIs.
+ * Generates printable walking directions using OpenStreetMap routing and geocoding APIs.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ROUTE_CONFIG, OUTPUT_CONFIG, ROUTE_CONFIG_PROCESSING } from './config';
+import { ROUTE_CONFIG, OUTPUT_CONFIG } from './config';
 import { fetchRoute, extractSteps } from './api/osrm';
 import { fetchSegmentLocations } from './api/nominatim';
 import { fetchPOIsForSegments } from './api/overpass';
@@ -30,15 +29,19 @@ async function main(): Promise<void> {
     const steps = extractSteps(route);
     console.log(`Total navigation steps: ${steps.length}`);
 
+    // Log step distances to debug
+    const totalStepDistance = steps.reduce((sum, s) => sum + s.distance, 0);
+    console.log(`Total step distance: ${formatDistance(totalStepDistance)} vs route distance: ${formatDistance(route.distance)}`);
+
     // Debug: show first 10 steps
-    console.log('\nFirst 10 steps from OSRM:');
+    console.log('\nFirst 10 steps:');
     steps.slice(0, 10).forEach((s, i) => {
       console.log(`  ${i + 1}. ${s.instruction} ${s.modifier || ''} -> "${s.name || '(unnamed)'}" (${Math.round(s.distance)}m)`);
     });
     console.log('');
 
-    // Step 3: Segment the route by distance (~1 mile per segment)
-    const segments = segmentRoute(route, undefined, steps);
+    // Step 3: Segment the route by steps
+    const segments = segmentRoute(route, steps);
     console.log(`Route split into ${segments.length} segments\n`);
 
     // Step 4: Fetch location names (this is the slow part due to rate limiting)

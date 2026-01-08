@@ -18,7 +18,7 @@ npm start
 
 Output: `output/emergency-directions.html`
 
-Open in browser and print (with "Background graphics" enabled).
+Open in browser and print.
 
 ## Features
 
@@ -32,20 +32,18 @@ Open in browser and print (with "Background graphics" enabled).
 Edit `.env` to set start/end locations and segment options:
 
 ```
-START_LAT=...
-START_LON=...
-START_NAME=Home
-START_ADDRESS=City, NY
+START_LAT=41.3961
+START_LON=-73.4488
+START_NAME=Danbury City Hall
+START_ADDRESS=155 Deer Hill Avenue, Danbury, CT
 
-END_LAT=...
-END_LON=...
-END_NAME=Destination
-END_ADDRESS=Town, NJ
+END_LAT=41.7004
+END_LON=-73.9210
+END_NAME=Poughkeepsie City Hall
+END_ADDRESS=62 Civic Center Plaza, Poughkeepsie, NY
 
 # Optional: segment configuration
-SEGMENT_MODE=distance   # 'distance' or 'count'
-MILES_PER_SEGMENT=1     # when mode is 'distance'
-NUM_SEGMENTS=10         # when mode is 'count'
+STEPS_PER_SEGMENT=6
 ```
 
 ## Data Sources

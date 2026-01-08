@@ -35,6 +35,10 @@ export interface OSRMStep {
   ref?: string; // Route number (e.g., "US-6", "NY-35")
   distance: number;
   duration: number;
+  geometry?: {
+    coordinates: Array<[number, number]>; // [lon, lat][]
+    type: string;
+  };
 }
 
 export interface OSRMLeg {
@@ -82,6 +86,7 @@ export interface RouteStep {
   distance: number;
   duration: number;
   location: [number, number];
+  geometry?: Array<[number, number]>; // Step path coordinates [lon, lat][]
 }
 
 export interface Waypoint {
@@ -98,7 +103,8 @@ export interface RouteSegment {
   distance: number;
   duration: number;
   waypoints?: Waypoint[];
-  stepRange?: [number, number]; // [startStepIdx, endStepIdx]
+  stepRange?: [number, number]; // [startStepIdx, endStepIdx] - for backwards compatibility
+  stepIndices?: number[]; // Actual step indices that belong to this segment
 }
 
 export interface SegmentLocation {

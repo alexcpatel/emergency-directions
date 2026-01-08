@@ -26,30 +26,66 @@ import {
   getStepIconType,
 } from '../processing/steps';
 
-// State Police phone numbers
+// State Police phone numbers - all 50 states
 const STATE_POLICE_NUMBERS: Record<string, { name: string; phone: string }> = {
-  'NY': { name: 'NY State Police', phone: '(518) 457-6811' },
-  'NJ': { name: 'NJ State Police', phone: '(609) 882-2000' },
+  'AL': { name: 'AL Law Enforcement', phone: '(334) 242-4400' },
+  'AK': { name: 'AK State Troopers', phone: '(907) 465-5500' },
+  'AZ': { name: 'AZ Department of Public Safety', phone: '(602) 223-2000' },
+  'AR': { name: 'AR State Police', phone: '(501) 618-8000' },
+  'CA': { name: 'CA Highway Patrol', phone: '(916) 843-3700' },
+  'CO': { name: 'CO State Patrol', phone: '(303) 239-4501' },
   'CT': { name: 'CT State Police', phone: '(860) 685-8190' },
-  'PA': { name: 'PA State Police', phone: '(717) 783-5517' },
-  'MA': { name: 'MA State Police', phone: '(508) 820-2300' },
-  'VT': { name: 'VT State Police', phone: '(802) 244-8727' },
-  'NH': { name: 'NH State Police', phone: '(603) 223-4381' },
-  'ME': { name: 'ME State Police', phone: '(207) 624-7076' },
-  'RI': { name: 'RI State Police', phone: '(401) 444-1000' },
   'DE': { name: 'DE State Police', phone: '(302) 739-5901' },
+  'FL': { name: 'FL Highway Patrol', phone: '(850) 617-2000' },
+  'GA': { name: 'GA State Patrol', phone: '(404) 624-7670' },
+  'HI': { name: 'HI State Sheriff', phone: '(808) 587-1350' },
+  'ID': { name: 'ID State Police', phone: '(208) 884-7000' },
+  'IL': { name: 'IL State Police', phone: '(217) 785-1000' },
+  'IN': { name: 'IN State Police', phone: '(317) 232-8253' },
+  'IA': { name: 'IA State Patrol', phone: '(515) 725-6090' },
+  'KS': { name: 'KS Highway Patrol', phone: '(785) 296-6800' },
+  'KY': { name: 'KY State Police', phone: '(502) 782-1800' },
+  'LA': { name: 'LA State Police', phone: '(225) 925-6006' },
+  'ME': { name: 'ME State Police', phone: '(207) 624-7076' },
   'MD': { name: 'MD State Police', phone: '(410) 653-4200' },
-  'VA': { name: 'VA State Police', phone: '(804) 674-2000' },
-  'WV': { name: 'WV State Police', phone: '(304) 746-2100' },
+  'MA': { name: 'MA State Police', phone: '(508) 820-2300' },
+  'MI': { name: 'MI State Police', phone: '(517) 332-2521' },
+  'MN': { name: 'MN State Patrol', phone: '(651) 201-7100' },
+  'MS': { name: 'MS Highway Patrol', phone: '(601) 987-1212' },
+  'MO': { name: 'MO State Highway Patrol', phone: '(573) 751-3313' },
+  'MT': { name: 'MT Highway Patrol', phone: '(406) 444-3278' },
+  'NE': { name: 'NE State Patrol', phone: '(402) 471-4545' },
+  'NV': { name: 'NV State Police', phone: '(775) 687-0400' },
+  'NH': { name: 'NH State Police', phone: '(603) 223-3858' },
+  'NJ': { name: 'NJ State Police', phone: '(609) 882-2000' },
+  'NM': { name: 'NM State Police', phone: '(505) 827-9300' },
+  'NY': { name: 'NY State Police', phone: '(518) 457-6811' },
+  'NC': { name: 'NC State Highway Patrol', phone: '(919) 733-7952' },
+  'ND': { name: 'ND Highway Patrol', phone: '(701) 328-2447' },
   'OH': { name: 'OH State Highway Patrol', phone: '(614) 466-2660' },
+  'OK': { name: 'OK Highway Patrol', phone: '(405) 425-2424' },
+  'OR': { name: 'OR State Police', phone: '(503) 378-3720' },
+  'PA': { name: 'PA State Police', phone: '(717) 783-5599' },
+  'RI': { name: 'RI State Police', phone: '(401) 444-1000' },
+  'SC': { name: 'SC Highway Patrol', phone: '(803) 896-7920' },
+  'SD': { name: 'SD Highway Patrol', phone: '(605) 773-3105' },
+  'TN': { name: 'TN Highway Patrol', phone: '(615) 251-5173' },
+  'TX': { name: 'TX Department of Public Safety', phone: '(512) 424-2000' },
+  'UT': { name: 'UT Highway Patrol', phone: '(801) 965-4518' },
+  'VT': { name: 'VT State Police', phone: '(802) 241-5000' },
+  'VA': { name: 'VA State Police', phone: '(804) 674-2000' },
+  'WA': { name: 'WA State Patrol', phone: '(360) 596-4000' },
+  'WV': { name: 'WV State Police', phone: '(304) 746-2100' },
+  'WI': { name: 'WI State Patrol', phone: '(608) 266-3212' },
+  'WY': { name: 'WY Highway Patrol', phone: '(307) 777-4301' },
 };
 
 /**
  * Extract state abbreviation from address string
  */
 function extractState(address: string): string | null {
-  // Common state abbreviations
-  const statePattern = /\b(NY|NJ|CT|PA|MA|VT|NH|ME|RI|DE|MD|VA|WV|OH)\b/i;
+  // All 50 US state abbreviations
+  const statePattern = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/i;
   const match = address.match(statePattern);
   return match ? match[1].toUpperCase() : null;
 }

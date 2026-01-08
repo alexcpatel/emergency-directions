@@ -8,242 +8,113 @@ import { calculateBounds, calculatePathDistance } from '../utils/geo';
 import { calculateWalkingDuration } from '../utils/format';
 
 /**
- * Divide route into segments based on config settings
- * Supports both distance-based and count-based segmentation
+ * Divide route into segments based on number of steps per segment
+ * Each segment's distance is the sum of its steps' distances
  */
 export function segmentRoute(
   route: OSRMRoute,
-  _unused?: number, // Kept for backwards compatibility
   steps?: RouteStep[]
 ): RouteSegment[] {
-  const coordinates = route.geometry.coordinates;
-  const { segmentMode, milesPerSegment, numSegments } = ROUTE_CONFIG_PROCESSING;
-
-  // Convert miles to meters
-  const targetDistance = milesPerSegment * 1609.34;
-
-  // Count mode: divide into fixed number of segments
-  if (segmentMode === 'count') {
-    return segmentByCoordinates(coordinates, numSegments, steps);
+  if (!steps || steps.length === 0) {
+    // Fallback: create a single segment from route coordinates
+    const coordinates = route.geometry.coordinates;
+    const bounds = calculateBounds(coordinates);
+    const distance = calculatePathDistance(coordinates);
+    return [{
+      index: 1,
+      coordinates,
+      startCoord: coordinates[0],
+      endCoord: coordinates[coordinates.length - 1],
+      bounds,
+      distance,
+      duration: calculateWalkingDuration(distance),
+    }];
   }
 
-  // Distance mode: walk through coordinates and cut at target distance
-  return segmentByDistance(coordinates, targetDistance, steps);
+  const { stepsPerSegment } = ROUTE_CONFIG_PROCESSING;
+  return segmentBySteps(steps, stepsPerSegment);
 }
 
 /**
- * Segment route by walking through coordinates and cutting at target distance
- * Ensures segments are continuous (end of N = start of N+1)
+ * Segment by grouping steps together
+ * Each segment's distance is the sum of its steps' distances
+ * Segment coordinates are derived from the steps' geometries
  */
-function segmentByDistance(
-  coordinates: Array<[number, number]>,
-  targetDistance: number,
-  steps?: RouteStep[]
+function segmentBySteps(
+  steps: RouteStep[],
+  stepsPerSegment: number
 ): RouteSegment[] {
-  // First, map each step to its closest coordinate index
-  const stepToCoordIndex: Map<number, number> = new Map();
-  if (steps) {
-    for (let stepIdx = 0; stepIdx < steps.length; stepIdx++) {
-      const step = steps[stepIdx];
-      const coordIdx = findClosestCoordinate(coordinates, step.location);
-      stepToCoordIndex.set(stepIdx, coordIdx);
-    }
-  }
-
   const segments: RouteSegment[] = [];
-  let segmentStartIdx = 0;
-  let accumulatedDistance = 0;
-
-  for (let i = 1; i < coordinates.length; i++) {
-    // Calculate distance from previous point
-    const [lon1, lat1] = coordinates[i - 1];
-    const [lon2, lat2] = coordinates[i];
-    const segDist = haversineDistance(lat1, lon1, lat2, lon2);
-    accumulatedDistance += segDist;
-
-    // Check if we should end this segment
-    const isLastPoint = i === coordinates.length - 1;
-    const reachedTarget = accumulatedDistance >= targetDistance;
-
-    if (isLastPoint || reachedTarget) {
-      const segmentCoords = coordinates.slice(segmentStartIdx, i + 1);
-
-      if (segmentCoords.length >= 2) {
-        const bounds = calculateBounds(segmentCoords);
-        const distance = calculatePathDistance(segmentCoords);
-        const duration = calculateWalkingDuration(distance);
-
-        // Find step range: steps whose coordinate indices fall within this segment
-        let stepRange: [number, number] | undefined;
-        if (steps && stepToCoordIndex.size > 0) {
-          const segmentStartCoordIdx = segmentStartIdx;
-          const segmentEndCoordIdx = i;
-
-          let firstStepIdx: number | null = null;
-          let lastStepIdx: number | null = null;
-
-          for (let stepIdx = 0; stepIdx < steps.length; stepIdx++) {
-            const coordIdx = stepToCoordIndex.get(stepIdx);
-            if (coordIdx === undefined) continue;
-
-            // Step is in this segment if its coordinate index is within bounds
-            if (coordIdx >= segmentStartCoordIdx && coordIdx <= segmentEndCoordIdx) {
-              if (firstStepIdx === null) firstStepIdx = stepIdx;
-              lastStepIdx = stepIdx;
-            }
-          }
-
-          if (firstStepIdx !== null && lastStepIdx !== null) {
-            stepRange = [firstStepIdx, lastStepIdx];
-          }
-        }
-
-        segments.push({
-          index: segments.length + 1,
-          coordinates: segmentCoords,
-          startCoord: segmentCoords[0],
-          endCoord: segmentCoords[segmentCoords.length - 1],
-          bounds,
-          distance,
-          duration,
-          stepRange,
-        });
-      }
-
-      // Start next segment from current point (ensures continuity)
-      segmentStartIdx = i;
-      accumulatedDistance = 0;
-    }
-  }
-
-  return segments;
-}
-
-/**
- * Haversine distance between two points in meters
- */
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000; // Earth radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-/**
- * Find the coordinate index closest to a given location
- */
-function findClosestCoordinate(
-  coordinates: Array<[number, number]>,
-  location: [number, number]
-): number {
-  let bestIdx = 0;
-  let bestDist = Infinity;
-
-  for (let i = 0; i < coordinates.length; i++) {
-    const [lon, lat] = coordinates[i];
-    const dist = Math.pow(lon - location[0], 2) + Math.pow(lat - location[1], 2);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = i;
-    }
-  }
-
-  return bestIdx;
-}
-
-/**
- * Segment by coordinate count (with optional step assignment)
- */
-function segmentByCoordinates(
-  coordinates: Array<[number, number]>,
-  numSegments: number,
-  steps?: RouteStep[]
-): RouteSegment[] {
-  const totalPoints = coordinates.length;
-  const pointsPerSegment = Math.floor(totalPoints / numSegments);
-  const segments: RouteSegment[] = [];
-
-  // If we have steps, distribute them evenly across segments
-  const stepsPerSegment = steps ? Math.floor(steps.length / numSegments) : 0;
-  const extraSteps = steps ? steps.length % numSegments : 0;
   let stepIdx = 0;
+  let segmentIndex = 1;
 
-  for (let i = 0; i < numSegments; i++) {
-    const startIdx = i * pointsPerSegment;
-    const endIdx = i === numSegments - 1 ? totalPoints - 1 : (i + 1) * pointsPerSegment;
+  while (stepIdx < steps.length) {
+    // Calculate how many steps go in this segment
+    const remainingSteps = steps.length - stepIdx;
+    const segStepCount = Math.min(stepsPerSegment, remainingSteps);
+    const startStepIdx = stepIdx;
+    const endStepIdx = stepIdx + segStepCount - 1;
 
-    const segmentCoords = coordinates.slice(startIdx, endIdx + 1);
-    const bounds = calculateBounds(segmentCoords);
-    const distance = calculatePathDistance(segmentCoords);
+    // Get the steps for this segment
+    const segmentSteps = steps.slice(startStepIdx, endStepIdx + 1);
+
+    // Calculate segment distance from sum of step distances
+    const distance = segmentSteps.reduce((sum, step) => sum + step.distance, 0);
     const duration = calculateWalkingDuration(distance);
 
-    // Calculate step range for this segment
-    let stepRange: [number, number] | undefined;
-    if (steps && steps.length > 0) {
-      const segStepCount = stepsPerSegment + (i < extraSteps ? 1 : 0);
-      const startStepIdx = stepIdx;
-      const endStepIdx = Math.min(stepIdx + segStepCount - 1, steps.length - 1);
-      stepRange = [startStepIdx, endStepIdx];
-      stepIdx += segStepCount;
+    // Build coordinates from step geometries
+    const coordinates: Array<[number, number]> = [];
+    for (const step of segmentSteps) {
+      if (step.geometry && step.geometry.length > 0) {
+        // Add all coordinates from this step's geometry
+        for (const coord of step.geometry) {
+          coordinates.push(coord);
+        }
+      } else {
+        // Fallback: use step location
+        coordinates.push(step.location);
+      }
+    }
+
+    // Remove duplicate consecutive coordinates
+    const uniqueCoords: Array<[number, number]> = [];
+    for (let j = 0; j < coordinates.length; j++) {
+      if (j === 0 || coordinates[j][0] !== coordinates[j - 1][0] || coordinates[j][1] !== coordinates[j - 1][1]) {
+        uniqueCoords.push(coordinates[j]);
+      }
+    }
+
+    // Ensure we have at least start and end coordinates
+    if (uniqueCoords.length === 0) {
+      uniqueCoords.push(segmentSteps[0].location);
+      if (segmentSteps.length > 1) {
+        uniqueCoords.push(segmentSteps[segmentSteps.length - 1].location);
+      }
+    }
+
+    const bounds = calculateBounds(uniqueCoords);
+    const stepRange: [number, number] = [startStepIdx, endStepIdx];
+    const stepIndices: number[] = [];
+    for (let j = startStepIdx; j <= endStepIdx; j++) {
+      stepIndices.push(j);
     }
 
     segments.push({
-      index: i + 1,
-      coordinates: segmentCoords,
-      startCoord: segmentCoords[0],
-      endCoord: segmentCoords[segmentCoords.length - 1],
+      index: segmentIndex,
+      coordinates: uniqueCoords,
+      startCoord: uniqueCoords[0],
+      endCoord: uniqueCoords[uniqueCoords.length - 1],
       bounds,
-      stepRange,
-      distance,
+      distance, // This is now the sum of step distances
       duration,
+      stepRange,
+      stepIndices,
     });
+
+    stepIdx += segStepCount;
+    segmentIndex++;
   }
 
   return segments;
 }
 
-/**
- * Find which segment a coordinate belongs to
- */
-export function findSegmentForCoordinate(
-  lon: number,
-  lat: number,
-  segments: RouteSegment[]
-): number {
-  let bestSegment = 0;
-  let bestScore = Infinity;
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-
-    // Calculate distance to segment endpoints
-    const startDist = Math.sqrt(
-      Math.pow(lon - seg.startCoord[0], 2) + Math.pow(lat - seg.startCoord[1], 2)
-    );
-    const endDist = Math.sqrt(
-      Math.pow(lon - seg.endCoord[0], 2) + Math.pow(lat - seg.endCoord[1], 2)
-    );
-
-    // Check if point is within segment bounds
-    const inBounds =
-      lon >= seg.bounds.minLon &&
-      lon <= seg.bounds.maxLon &&
-      lat >= seg.bounds.minLat &&
-      lat <= seg.bounds.maxLat;
-
-    // Score based on distance, with bonus for being in bounds
-    const minDist = Math.min(startDist, endDist);
-    const score = inBounds ? minDist * 0.5 : minDist;
-
-    if (score < bestScore) {
-      bestScore = score;
-      bestSegment = i;
-    }
-  }
-
-  return bestSegment;
-}

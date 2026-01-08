@@ -63,6 +63,9 @@ export function extractSteps(route: OSRMRoute): RouteStep[] {
   for (const leg of route.legs) {
     for (const step of leg.steps) {
       if (step.maneuver) {
+        // Extract geometry if available (the actual path of this step)
+        const geometry = step.geometry?.coordinates || [];
+
         steps.push({
           instruction: step.maneuver.type,
           modifier: step.maneuver.modifier,
@@ -71,6 +74,7 @@ export function extractSteps(route: OSRMRoute): RouteStep[] {
           distance: step.distance,
           duration: step.distance / WALKING_SPEED_MPS,
           location: step.maneuver.location,
+          geometry: geometry.length > 0 ? geometry : undefined,
         });
       }
     }

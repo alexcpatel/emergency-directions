@@ -4,7 +4,6 @@
 
 import { RouteStep, RouteSegment, ProcessedStep } from '../types';
 import { formatDistance } from '../utils/format';
-import { findSegmentForCoordinate } from './route';
 
 /**
  * Group steps by segment using stepRange
@@ -14,11 +13,16 @@ export function groupStepsBySegment(
   segments: RouteSegment[]
 ): RouteStep[][] {
   return segments.map(seg => {
+    // Use stepIndices if available (most accurate)
+    if (seg.stepIndices && seg.stepIndices.length > 0) {
+      return seg.stepIndices.map(idx => steps[idx]);
+    }
+    // Fallback to stepRange
     if (seg.stepRange) {
       const [start, end] = seg.stepRange;
       return steps.slice(start, end + 1);
     }
-    // Fallback: find steps whose locations are within this segment's bounds
+    // Final fallback: find steps whose locations are within this segment's bounds
     const segmentSteps: RouteStep[] = [];
     for (const step of steps) {
       if (!step.location) continue;
@@ -59,7 +63,8 @@ export function filterStepsForDisplay(steps: ProcessedStep[], _maxSteps?: number
  */
 export function formatStepInstruction(step: ProcessedStep): string {
   const action = formatAction(step.instruction, step.modifier);
-  const dist = step.distance > 50 ? `<span class="step-dist">${formatDistance(step.distance)}</span>` : '';
+  // Show distance for all steps (even short ones) so totals make sense
+  const dist = step.distance > 0 ? `<span class="step-dist">${formatDistance(step.distance)}</span>` : '';
 
   // Build road name: prefer name, fall back to ref (route number)
   let roadName = '';
@@ -70,7 +75,7 @@ export function formatStepInstruction(step: ProcessedStep): string {
       roadName += ` (${step.ref})`;
     }
   } else if (step.ref && step.ref.trim()) {
-    // Only route number available
+    // Only route reference available - show as-is
     roadName = step.ref;
   }
 

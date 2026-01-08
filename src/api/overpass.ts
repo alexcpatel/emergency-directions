@@ -1,5 +1,5 @@
 /**
- * Overpass API client for querying OpenStreetMap POIs
+ * Overpass API client for querying OpenStreetMap POIs and ways
  */
 
 import axios from 'axios';
@@ -106,3 +106,4 @@ export async function fetchPOIsForSegments(
 
   return allPOIs;
 }
+
